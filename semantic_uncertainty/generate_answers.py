@@ -16,7 +16,7 @@ from uncertainty.models.huggingface_models import HuggingfaceModel
 from uncertainty.models.oai_models import OpenAIModel
 from uncertainty.utils import utils
 
-from uncertainty.uncertainty_measures.p_true import calculate_p_true, construct_few_shot_prompt
+from uncertainty.uncertainty_measures import p_true as p_true_utils
 
 
 utils.setup_logger()
@@ -160,7 +160,7 @@ logging.info('Finished wandb init.')
 
 if args.compute_p_true:
     logging.info('Constructing few-shot prompt for p_true.')
-    p_true_few_shot_prompt = construct_few_shot_prompt(
+    p_true_few_shot_prompt = p_true_utils.construct_few_shot_prompt(
         model=model, dataset=train_dataset, n_shots=20, prompt=prompt,
         brief=BRIEF, brief_always=args.brief_always, make_prompt=make_prompt)
     logging.info('p_true_few_shot_prompt: %s', p_true_few_shot_prompt)
@@ -270,7 +270,7 @@ for dataset_split in ['train', 'validation']:
 
         if args.compute_p_true and dataset_split == 'validation':
             # Already compute p_true here. Avoid heavy lifting in downstream scripts.
-            p_true = calculate_p_true(
+            p_true = p_true_utils.calculate_p_true(
                 model, question, most_likely_answer_dict['response'],
                 [r[0] for r in full_responses], p_true_few_shot_prompt)
             p_trues.append(p_true)
