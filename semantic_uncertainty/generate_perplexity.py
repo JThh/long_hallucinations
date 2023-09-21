@@ -39,7 +39,7 @@ parser.add_argument(
     choices=['trivia_qa', 'squad', 'med_qa', 'bioasq', 'record'],
     help="Dataset to use")
 parser.add_argument(
-    "--num_samples", type=int, default=5,
+    "--num_samples", type=int, default=200,
     help="Number of samples to use")
 parser.add_argument(
     "--num_few_shot", type=int, default=5,
