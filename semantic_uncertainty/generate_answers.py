@@ -27,6 +27,12 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 # Implement argparsers
 parser = argparse.ArgumentParser()
 parser.add_argument(
+    "--debug", type=bool, default=False,
+    help="Keep default wandb clean.")
+parser.add_argument(
+    "--experiment_lot", type=str, default='Unnamed Experiment',
+    help="Keep default wandb clean.")
+parser.add_argument(
     "--model_name", type=str, default="oai.code-davinci-002", help="Model name",
     choices=[
         'oai.code-davinci-002', 'oai.text-davinci-002',
@@ -62,7 +68,6 @@ parser.add_argument(
     help=(
         "Only get embedding of most likely answer for training set. "
         "This is all that's needed for p_true."))
-parser.add_argument("--restore_id", type=str, default=None)
 parser.add_argument('--compute_p_true', default=True,
                     action=argparse.BooleanOptionalAction)
 parser.add_argument('--entity', type=str, default='goatml')
@@ -129,12 +134,6 @@ slurm_jobid = os.getenv('SLURM_JOB_ID')
 if not os.path.exists(f"/scratch-ssd/{user}/uncertainty"):
     os.makedirs(f"/scratch-ssd/{user}/uncertainty")
 
-if args.restore_id is not None:
-    logging.warning('Restoring existing run at %s', args.restore_id)
-    kwargs = {'resume': True, 'id': args.restore_id}
-else:
-    kwargs = {}
-
 wandb.init(
     project="uncertainty",
     entity=args.entity,
@@ -148,8 +147,7 @@ wandb.init(
         "temperature": args.temperature,
         "compute_p_true": args.compute_p_true
     },
-    notes=f'slurm_id: {slurm_jobid}',
-    **kwargs
+    notes=f'slurm_id: {slurm_jobid}, experiment_lot: {args.experiment_lot}',
 )
 logging.info('Finished wandb init.')
 

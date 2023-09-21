@@ -249,14 +249,3 @@ class HuggingfaceModel(BaseModel):
         #     in zip(model_output_true['logits'][0], tokenized_data[0][1:])]))
 
         return perplexity
-
-
-def demo():
-    """Demo."""
-    model = HuggingfaceModel('FlanUL2')
-    input_string = "Answer the following question by reasoning step by step. The cafeteria had 23 apples. If they used 20 for lunch, and bought 6 more, how many apple do they have?"  # pylint: disable=line-too-long # noqa: E501
-    print(model.predict(input_string, temperature=1))
-
-
-if __name__ == "__main__":
-    demo()
