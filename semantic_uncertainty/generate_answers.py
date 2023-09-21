@@ -27,24 +27,20 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 # Implement argparsers
 parser = argparse.ArgumentParser()
 parser.add_argument(
-    "--debug", type=bool, default=False,
+    "--debug", action=argparse.BooleanOptionalAction, default=False,
     help="Keep default wandb clean.")
 parser.add_argument(
     "--experiment_lot", type=str, default='Unnamed Experiment',
     help="Keep default wandb clean.")
 parser.add_argument(
     "--model_name", type=str, default="oai.code-davinci-002", help="Model name",
-    choices=[
-        'oai.code-davinci-002', 'oai.text-davinci-002',
-        'llama-7b', 'llama-13b', 'llama-30b', 'llama-65b',
-        'FlanUL2', 'T5', 'alpaca-lora', 'gpt-neo-2.7B',
-        'falcon-7b', 'falcon-40b', 'falcon-7b-instruct', 'falcon-40b-instruct'])
+)
 parser.add_argument(
     "--dataset", type=str, default="record",
     choices=['trivia_qa', 'squad', 'med_qa', 'bioasq', 'record'],
     help="Dataset to use")
 parser.add_argument(
-    "--num_samples", type=int, default=5,
+    "--num_samples", type=int, default=200,
     help="Number of samples to use")
 parser.add_argument(
     "--num_few_shot", type=int, default=5,
