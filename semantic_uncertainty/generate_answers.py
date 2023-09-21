@@ -99,7 +99,7 @@ def make_prompt(context, question, answer, brief, brief_always):
     if answer:
         prompt += f"Answer: {answer}\n\n"
     else:
-        prompt += 'Answer: '
+        prompt += 'Answer:'
     return prompt
 
 
