@@ -50,7 +50,6 @@ class HuggingfaceModel():
 
     def __init__(self, model_name, stop_sequences=None):
 
-
         if 'llama' in model_name.lower():
 
             if model_name.endswith('-8bit'):
@@ -126,7 +125,6 @@ class HuggingfaceModel():
 
         self.model_name = model_name
         self.stop_sequences = stop_sequences
-
 
     def predict(self, input_data, temperature):
 

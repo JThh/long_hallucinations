@@ -104,25 +104,21 @@ def make_prompt(context, question, answer, brief, brief_always):
 
 
 BRIEF = "Answer the following question as briefly as possible.\n"
+STOP_SEQUENCES = ['\n', 'Question:', 'Context:']
+
 prompt = utils.construct_fewshot_prompt_from_indices(
     train_dataset, prompt_indices, BRIEF, args.brief_always, make_prompt)
 logging.info('Prompt is: %s', prompt)
 
-stop_sequences = ['\n', 'Question:', 'Context:']
-
 
 def init_model(args):
-    if args.model_name == "FlanUL2":
-        model = HuggingfaceModel('FlanUL2', stop_sequences=stop_sequences)
-    elif args.model_name == 'T5':
-        model = HuggingfaceModel('T5', stop_sequences=stop_sequences)
-    elif ('llama' in args.model_name) or ('alpaca' in args.model_name) or ('neo' in args.model_name)\
-            or ('falcon' in args.model_name):
-        model = HuggingfaceModel(args.model_name, stop_sequences=stop_sequences)
-    elif args.model_name.startswith('oai'):
-        model = OpenAIModel(args.model_name.split('.')[1], stop_sequences=stop_sequences)
+    mn = args.model_name
+    if 'llama' in mn.lower() or 'falcon' in mn:
+        model = HuggingfaceModel(mn, stop_sequences=STOP_SEQUENCES)
+    elif mn.startswith('oai'):
+        model = OpenAIModel(mn.split('.')[1], stop_sequences=STOP_SEQUENCES)
     else:
-        raise ValueError(f'Unknown model_name `{args.model_name}`.')
+        raise ValueError(f'Unknown model_name `{mn}`.')
     return model
 
 
