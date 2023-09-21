@@ -7,15 +7,7 @@ class BaseModel(ABC):
     stop_sequences: List[Text]
 
     @abstractmethod
-    def train(self, data):
-        pass
-
-    @abstractmethod
     def predict(self, input_data, temperature):
-        pass
-
-    @abstractmethod
-    def evaluate(self, test_data):
         pass
 
     @abstractmethod

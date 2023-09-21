@@ -26,10 +26,6 @@ class OpenAIModel(BaseModel):
             self.use_oai_stop = True
         self.encoding = tiktoken.encoding_for_model(self.model_name)
 
-    def train(self, data):
-        # Implement training for TextDavinci003
-        pass
-
     def num_tokens_from_string(self, string: str) -> int:
         """Returns the number of tokens in a text string."""
         num_tokens = len(self.encoding.encode(string))
@@ -67,10 +63,6 @@ class OpenAIModel(BaseModel):
         else:
             sliced_response = response['choices'][0]['text']
         return sliced_response, token_log_likelihoods[:token_stop_index], None
-
-    def evaluate(self, test_data):
-        # Implement evaluation for TextDavinci003
-        pass
 
     def get_p_true(self, input_data):
         """Returns the probability of the last token of the given input under the model."""

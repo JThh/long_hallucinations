@@ -16,6 +16,7 @@ from huggingface_hub import snapshot_download
 
 from uncertainty.models.base_model import BaseModel
 
+
 def remove_split_layer(device_map):
     """Modify device maps s.t. individual layers are not spread across devices."""
 
@@ -45,7 +46,7 @@ def remove_split_layer(device_map):
     return device_map
 
 
-class HuggingfaceModel():
+class HuggingfaceModel(BaseModel):
     """HuggingfaceModel."""
 
     def __init__(self, model_name, stop_sequences=None):
@@ -205,10 +206,6 @@ class HuggingfaceModel():
                 answer, sliced_answer)
             log_likelihoods = [transition_scores[0][-1].item()]
         return sliced_answer, log_likelihoods, last_token_embedding
-
-    def evaluate(self, test_data):
-        # Implement evaluation.
-        pass
 
     def get_p_true(self, input_data):
         """Get the probability of the model anwering A (True) for the given input"""
