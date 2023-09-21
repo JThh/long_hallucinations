@@ -86,3 +86,4 @@ def calculate_p_true(model, question, most_probable_answer, brainstormed_answers
 
     log_prob = model.get_p_true(prompt)
 
+    return log_prob

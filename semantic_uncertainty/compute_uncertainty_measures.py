@@ -56,6 +56,7 @@ user = os.environ['USER']
 wandb_dir = f'/scratch-ssd/{user}/uncertainty'
 slurm_jobid = os.getenv('SLURM_JOB_ID')
 if args.assign_new_wandb_id:
+    logging.info('Assign new wandb_id.')
     wandb.init(
         entity=args.entity,
         # set the wandb project where this run will be logged
@@ -76,6 +77,7 @@ if args.assign_new_wandb_id:
 
         return Restored
 else:
+    logging.info('Reuse old wandb id.')
     wandb.init(
         # set the wandb project where this run will be logged
         entity=args.entity,
@@ -121,39 +123,18 @@ validation_generations_pickle = restore('validation_generations.pkl')
 with open(validation_generations_pickle.name, 'rb') as infile:
     validation_generations = pickle.load(infile)
 
-# Remove key "few_shot_prompt" from generations.
-train_generations.pop('few_shot_prompt')
-validation_generations.pop('few_shot_prompt')
 
 entropies, accuracies = defaultdict(list), defaultdict(list)
 validation_embeddings, validation_is_true, validation_answerable = [], [], []
 count = 0  # pylint: disable=invalid-name
 
 if len(validation_generations) == 400:
-    RUNS_ARE_BUGGY = True
-    logging.warning('Run affected by train/val overlap bug. Fixing posthoc.')
-else:
-    RUNS_ARE_BUGGY = False
-    logging.warning('Runs not affected by train/val overlap bug!')
-
-if RUNS_ARE_BUGGY:
-    assert len(validation_generations) == 400
-    assert len(train_generations) == 200
-
-    ids = list(validation_generations.keys())
-    delete, keep = ids[:200], ids[200:]
-    validation_generations = {k: validation_generations[k] for k in keep}
-
-    if not is_ood_eval:
-        # deleting all train keys
-        assert set(delete) == set(train_generations.keys())
-        # none of the ones we keep are in train and none of the ones in train we keep
-        assert set(validation_generations.keys()) - set(train_generations.keys()) == set(validation_generations.keys())
-        assert set(train_generations.keys()) - set(validation_generations.keys()) == set(train_generations.keys())
+    raise ValueError("Very likely this is a bug where validation data contains train data.")
 
 
 def is_answerable(generation):
     return len(generation['reference']['answers']['text']) > 0
+
 
 # Loop over datapoints and compute validation embeddings, accuracies and entropies.
 for tid in validation_generations:
@@ -191,7 +172,9 @@ for tid in validation_generations:
             entropies['regular_entropy' + agg_name].append(predictive_entropy(log_liks_agg))
 
             # Compute semantic entropies with summing and with averaging probabilities within the cluster.
-            for cluster_agg_name, cluster_agg in zip(['', '_sum-normalized', '_sum-normalized-rao', '_cmean'], ['sum', 'sum_normalized', 'sum_normalized', 'mean']):
+            cluster_agg_names = ['', '_sum-normalized', '_sum-normalized-rao', '_cmean']
+            cluster_aggs = ['sum', 'sum_normalized', 'sum_normalized', 'mean']
+            for cluster_agg_name, cluster_agg in zip(cluster_agg_names, cluster_aggs):
                 log_likelihood_per_semantic_id = logsumexp_by_id(semantic_ids, log_liks_agg, agg=cluster_agg)
                 name = 'semantic_entropy' + agg_name + cluster_agg_name
 

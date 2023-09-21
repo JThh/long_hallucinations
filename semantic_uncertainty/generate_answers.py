@@ -56,6 +56,12 @@ parser.add_argument(
     "--get_training_set_generations", default=True,
     action=argparse.BooleanOptionalAction,
     help="Get generations for training set?")
+parser.add_argument(
+    "--get_training_set_generations_most_likely_only", default=True,
+    action=argparse.BooleanOptionalAction,
+    help=(
+        "Only get embedding of most likely answer for training set. "
+        "This is all that's needed for p_true."))
 parser.add_argument("--restore_id", type=str, default=None)
 parser.add_argument('--compute_p_true', default=True,
                     action=argparse.BooleanOptionalAction)
@@ -65,6 +71,7 @@ parser.add_argument(
 
 
 args, unknown = parser.parse_known_args()
+experiment_details = {'args': args}
 if unknown:
     raise ValueError(f'Unkown args: {unknown}')
 # Load SQuAD dataset from Hugging Face
@@ -75,10 +82,11 @@ logging.info('Train dataset: %s', train_dataset)
 
 squad_metric = load("squad_v2")
 
+
 # Get indices of answerable and unanswerable questions and construct prompt.
 answerable_indices, unanswerable_indices = utils.split_dataset(train_dataset)
-answerable_sample = random.sample(answerable_indices, args.num_few_shot)
-brief = "Answer the following question as briefly as possible.\n"  # pylint: disable=invalid-name
+prompt_indices = random.sample(answerable_indices, args.num_few_shot)
+experiment_details['prompt_indices'] = prompt_indices
 
 
 def make_prompt(context, question, answer, brief, brief_always):
@@ -95,8 +103,9 @@ def make_prompt(context, question, answer, brief, brief_always):
     return prompt
 
 
+BRIEF = "Answer the following question as briefly as possible.\n"
 prompt = utils.construct_fewshot_prompt_from_indices(
-    train_dataset, answerable_sample, brief, args.brief_always, make_prompt)
+    train_dataset, prompt_indices, BRIEF, args.brief_always, make_prompt)
 logging.info('Prompt is: %s', prompt)
 
 stop_sequences = ['\n', 'Question:', 'Context:']
@@ -131,11 +140,9 @@ else:
     kwargs = {}
 
 wandb.init(
-    # set the wandb project where this run will be logged
     project="uncertainty",
     entity=args.entity,
     dir=f"/scratch-ssd/{user}/uncertainty",
-    # track hyperparameters and run metadata
     config={
         "dataset": args.dataset,
         "model": args.model_name,
@@ -151,49 +158,39 @@ wandb.init(
 logging.info('Finished wandb init.')
 
 
-logging.info('Generating answers: ')
-# This will store all input data and model predictions.
-generations = {'few_shot_prompt': prompt}
-# Tracks model accuracy.
-p_trues, accuracies = [], []
-
-result_dict = {'uncertainty_measures': {}}
-
 if args.compute_p_true:
+    logging.info('Constructing few-shot prompt for p_true.')
     p_true_few_shot_prompt = construct_few_shot_prompt(
         model=model, dataset=train_dataset, n_shots=20, prompt=prompt,
-        brief=brief, brief_always=args.brief_always, make_prompt=make_prompt)
+        brief=BRIEF, brief_always=args.brief_always, make_prompt=make_prompt)
     logging.info('p_true_few_shot_prompt: %s', p_true_few_shot_prompt)
 
-iter = ['train', 'validation']
-if os.getenv('FIX_40B_INST_TRIVIA') == 'TRUE':
-    logging.warning('FIXING 40B-Instruct TRIVIA-QA run. Should usually not be enabled!')
-    iter = ['validation']
 
-for dataset_split in iter:
+logging.info('Generating answers: ')
+for dataset_split in ['train', 'validation']:
     logging.info('Starting with dataset_split %s.', dataset_split)
+
+    # This will store all input data and model predictions.
+    accuracies, generations, results_dict, p_trues = [], {}, {}, []
 
     if dataset_split == 'train':
         if not args.get_training_set_generations:
+            logging.info('Skip training data.')
             continue
         dataset = train_dataset
-
     else:
         dataset = validation_dataset
 
     # Evaluate over random subset of the datasets.
     indices = random.sample(range(0, len(dataset)), min(args.num_samples, len(dataset)))
+    experiment_details[dataset_split] = {'indices': indices}
 
     if args.num_samples > len(dataset):
         logging.info('Not enough samples in dataset. Using all %d samples.', len(dataset))
+
     it = 0
     for index in tqdm(indices):
         it += 1
-        # torch.cuda.empty_cache()  # fix memory leaks?
-        # if it % 30 == 0:
-        #     logging.info('REINIT MODEL TO FIGHT MEMORY LEAKS.')
-        #     torch.cuda.empty_cache()  # fix memory leaks?
-        #     model = init_model(args)
 
         # Grab example at index.
         example = dataset[index]
@@ -206,14 +203,20 @@ for dataset_split in iter:
                 'text': correct_answer},
             'id': example['id']}
 
-        local_prompt = prompt + make_prompt(context, question, None, brief, args.brief_always)
+        local_prompt = prompt + make_prompt(context, question, None, BRIEF, args.brief_always)
 
         logging.info(local_prompt)
         full_responses = []
         # We sample 1 low temperature answer on which we will compute the
         # accuracy and args.num_generation high temperature answers which will
         # be used to estimate the entropy.
-        for i in range(args.num_generations + 1):
+
+        if dataset_split == 'train' and args.get_training_set_generations_most_likely_only:
+            num_generations = 1
+        else:
+            num_generations = args.num_generations + 1
+
+        for i in range(num_generations):
 
             # Temperature for first generation is always `0.1`.
             temperature = 0.1 if i == 0 else args.temperature
@@ -222,8 +225,7 @@ for dataset_split in iter:
                 local_prompt, temperature)
             embedding = embedding.cpu() if embedding is not None else None
 
-            # Assemble `prediction` and `reference` for
-            # squad_metric.compute().
+            # Assemble `prediction` and `reference` for squad_metric.compute().
             prediction = {
                 'prediction_text': predicted_answer,
                 'id': example['id'],
@@ -266,28 +268,35 @@ for dataset_split in iter:
         # Append all predictions for this example to `generations`.
         generations[example['id']]['responses'] = full_responses
 
-        if args.compute_p_true:
-
+        if args.compute_p_true and dataset_split == 'validation':
+            # Already compute p_true here. Avoid heavy lifting in downstream scripts.
             p_true = calculate_p_true(
-                model, question, most_likely_answer_dict['response'], [r[0] for r in full_responses],
-                p_true_few_shot_prompt)
+                model, question, most_likely_answer_dict['response'],
+                [r[0] for r in full_responses], p_true_few_shot_prompt)
             p_trues.append(p_true)
             logging.info('p_true: %s', p_true)
 
-    # Print overall accuracy
+    # Save generations for that split.
+    with open(f'{wandb.run.dir}/{dataset_split}_generations.pkl', 'wb') as f:
+        pickle.dump(generations, f)
+    wandb.save(f'{wandb.run.dir}/{dataset_split}_generations.pkl')
+
+    # Print overall accuracy.
     accuracy = np.mean(accuracies)
     print(f"Overall {dataset_split} split accuracy: {accuracy}")
     wandb.log({f"{dataset_split}_accuracy": accuracy})
 
-    if args.compute_p_true:
-        p_false = [1 - p for p in p_trues]
-        result_dict['uncertainty_measures']['p_false'] = p_false
+    # Already compute p_true here. Avoid heavy lifting in downstream scripts.
+    if dataset_split == 'validation':
+        if args.compute_p_true:
+            p_false = [1 - p for p in p_trues]
+            results_dict['uncertainty_measures'] = {'p_false':  p_false}
 
-    with open(f'{wandb.run.dir}/uncertainty_measures.pkl', 'wb') as f:
-        pickle.dump(result_dict, f)
-    wandb.save(f'{wandb.run.dir}/uncertainty_measures.pkl')
+        with open(f'{wandb.run.dir}/uncertainty_measures.pkl', 'wb') as f:
+            pickle.dump(results_dict, f)
+        wandb.save(f'{wandb.run.dir}/uncertainty_measures.pkl')
 
-    # write generations file to json
-    with open(f'{wandb.run.dir}/{dataset_split}_generations.pkl', 'wb') as f:
-        pickle.dump(generations, f)
-    wandb.save(f'{wandb.run.dir}/{dataset_split}_generations.pkl')
+with open(f'{wandb.run.dir}/experiment_details.pkl', 'wb') as f:
+    pickle.dump(experiment_details, f)
+wandb.save(f'{wandb.run.dir}/experiment_details.pkl')
+logging.info('Run complete.')

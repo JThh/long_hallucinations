@@ -70,8 +70,7 @@ def analyze_run(wandb_runid, assign_new_wandb_id=False, answer_fractions_mode='d
         logging.info('Computing for uncertainty measure `%s`.', measure_name)
 
         if len(measure_values) == 400:
-            logging.warning('FIXING BUGGY RUN FOR MEASURE VALUE %s', measure_name)
-            measure_values = measure_values[200:]
+            raise ValueError('Very likely this is a bug where validation data also contains train data.')
 
         # Validation accuracy.
         validation_is_falses = [
