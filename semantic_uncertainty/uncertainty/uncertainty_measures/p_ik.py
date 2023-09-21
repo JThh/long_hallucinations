@@ -71,6 +71,7 @@ def get_p_ik(train_embeddings, is_false, eval_embeddings=None, eval_is_false=Non
         ax.set_title(f'Set: {suffix} \n {fmt}')
 
     # Plotting.
+    # TODO: Add this plot to wandb!
     axes[0].set_ylabel('Counts')
     axes[1].set_xlabel('Predicted Probabilities')
     plt.savefig('figures/p_ik.png')  # Can be viewed in vscode w/o plugins.
