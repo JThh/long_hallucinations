@@ -1,9 +1,7 @@
 """Implement HuggingfaceModel models."""
 import logging
 from collections import Counter
-import numpy as np
 import torch
-import torch.utils._pytree as pytree
 
 import accelerate
 
@@ -11,10 +9,43 @@ from transformers import AutoTokenizer
 from transformers import AutoConfig
 from transformers import AutoModelForCausalLM
 from transformers import BitsAndBytesConfig
+from transformers import StoppingCriteria
+from transformers import StoppingCriteriaList
 from huggingface_hub import snapshot_download
 
 
 from uncertainty.models.base_model import BaseModel
+
+
+MAX_NEW_TOKENS = 25
+
+
+class StoppingCriteriaSub(StoppingCriteria):
+    """Stop generations when they match a particular text or token."""
+    def __init__(self, stops, tokenizer, match_on='text', initial_length=None):
+        super().__init__()
+        self.stops = stops
+        self.initial_length = initial_length
+        self.tokenizer = tokenizer
+        self.match_on = match_on
+        if self.match_on == 'tokens':
+            self.stops = [torch.tensor(self.tokenizer.encode(i)).to('cuda') for i in self.stops]
+            print(self.stops)
+
+    def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor):
+        del scores
+        for stop in self.stops:
+            if self.match_on == 'text':
+                generation = self.tokenizer.decode(input_ids[0][self.initial_length:], skip_special_tokens=False)
+                match = stop in generation
+            elif self.match_on == 'tokens':
+                # Can be dangerous due to tokenizer ambiguities.
+                match = stop in input_ids[0][-len(stop):]
+            else:
+                raise
+            if match:
+                return True
+        return False
 
 
 def remove_split_layer(device_map):
@@ -89,7 +120,7 @@ class HuggingfaceModel(BaseModel):
                     self.model = AutoModelForCausalLM.from_config(config)
                 self.model.tie_weights()
 
-                max_mem = 15 * 4686198491 # 4G*15
+                max_mem = 15 * 4686198491  # 4G * 15
                 device_map = accelerate.infer_auto_device_map(
                     self.model.model,
                     max_memory={0: max_mem, 1: max_mem},
@@ -125,86 +156,128 @@ class HuggingfaceModel(BaseModel):
             raise ValueError
 
         self.model_name = model_name
-        self.stop_sequences = stop_sequences
+        self.stop_sequences = stop_sequences + [self.tokenizer.eos_token]
 
     def predict(self, input_data, temperature):
 
         # TODO @lorenz: Investigate this for clarify. Why are the inputs tuples sometimes?
         if isinstance(input_data, tuple):
+            logging.WARNING("INPUT IS A TUPLE. WHY?")
             input_data = input_data[0]
 
         # Implement prediction.
         inputs = self.tokenizer(input_data, return_tensors="pt").to("cuda")
-
         if 'llama' in self.model_name or 'falcon' in self.model_name:
             if 'token_type_ids' in inputs:
                 del inputs['token_type_ids']
 
-        logging.debug('temperature: %f', temperature)
+        stopping_criteria = StoppingCriteriaList([StoppingCriteriaSub(
+            stops=self.stop_sequences,
+            initial_length=len(inputs['input_ids'][0]),
+            tokenizer=self.tokenizer)])
 
+        logging.debug('temperature: %f', temperature)
         with torch.no_grad():
             outputs = self.model.generate(
                 **inputs,
-                max_new_tokens=25,
+                max_new_tokens=MAX_NEW_TOKENS,
                 return_dict_in_generate=True,
                 output_scores=True,
                 output_hidden_states=True,
                 temperature=temperature,
                 do_sample=True,
+                stopping_criteria=stopping_criteria
             )
 
-        answer = self.tokenizer.decode(
-            outputs.sequences[0], skip_special_tokens=True)
+        full_answer = self.tokenizer.decode(
+            outputs.sequences[0], skip_special_tokens=False)
 
         # For some models, we need to remove the input_data from the answer.
-        if answer.startswith(input_data):
+        if full_answer.startswith(input_data):
             input_data_offset = len(input_data)
-            n_tokens_in_input = inputs['input_ids'].shape[1]
         else:
-            input_data_offset, n_tokens_in_input = 0, 0
+            raise ValueError('Have not tested this in a while.')
 
-        start_index, stop_index = self.get_character_start_stop_indices(input_data_offset, answer)
+        # Remove input from answer.
+        answer = full_answer[input_data_offset:]
 
-        if start_index < stop_index:
-            sliced_answer = answer[start_index:stop_index]
-        else:
-            sliced_answer = answer[start_index:]
-            logging.warning(
-                'Problematic generation: start_index %d, stop_index %d, ignoring stop_index!', start_index, stop_index)
-            stop_index = -1
+        # Remove stop_words from answer.
+        stop_at = len(answer)
+        sliced_answer = answer
+        for stop in self.stop_sequences:
+            if answer.endswith(stop):
+                stop_at = len(answer) - len(stop)
+                sliced_answer = answer[:stop_at]
+                break
+        assert all([stop not in sliced_answer for stop in self.stop_sequences])
 
-        logging.debug('Answer: %s', sliced_answer)
+        # Remove whitespaces from answer (in particular from beginning.)
+        sliced_answer = sliced_answer.strip()
+        logging.info('Generation for temperature `%.2f` is `%s`.', temperature, sliced_answer)
 
-        # Get token index of first stop sequence to cut off likelihoods/embeddings correctly.
-        token_stop_index = self.tokenizer(answer[:stop_index], return_tensors="pt")['input_ids'].shape[1]
+        # Get the number of tokens until the stop word comes up.
+        # Note: Indexing with `stop_at` already excludes the stop_token.
+        # Note: It's important we do this with full answer, since there might be
+        # non-trivial interactions between the input_data and generated part
+        # in tokenization (particularly around whitespaces.)
+        token_stop_index = self.tokenizer(full_answer[:input_data_offset + stop_at], return_tensors="pt")['input_ids'].shape[1]
+        n_input_token = len(inputs['input_ids'][0])
+        n_generated = token_stop_index - n_input_token  # excluding stop tokens
 
         # Get the last hidden state (last layer) and the last token's embedding of the answer.
+        # Note: We do not want this to be the stop token.
+
+        # outputs.hidden_state is a tuple of len = n_generated_tokens.
         # Note: The output embeddings have the shape (batch_size, generated_length, hidden_size). We do not get
         # embeddings for input_data! We thus subtract the n_tokens_in_input from
         # token_stop_index to arrive at the right output.
+
         if 'decoder_hidden_states' in outputs.keys():
-            last_hidden_state = outputs.decoder_hidden_states[-1][token_stop_index - 1 - n_tokens_in_input]
+            hidden = outputs.decoder_hidden_states
         else:
-            last_hidden_state = outputs.hidden_states[-1][token_stop_index - 1 - n_tokens_in_input]
-        last_token_embedding = last_hidden_state[:, -1, :].cpu()
+            hidden = outputs.hidden_states
+
+        # first access states for last token generation before stop token
+        last_generation = hidden[n_generated - 1]
+        # then access. last layer for that generation
+        last_layer = last_generation[-1]
+        # then access last token in that generation
+        last_token_embedding = last_layer[:, -1, :].cpu()
 
         # Get log_likelihoods.
+        # outputs.scores are the logits for the generated token.
+        # outputs.scores is a tuple of len = n_generated_tokens.
+        # Each entry is shape (bs, vocabulary size).
+        # outputs.sequences is the sequence of all tokens: input and generated.
         transition_scores = self.model.compute_transition_scores(
             outputs.sequences, outputs.scores, normalize_logits=True)
         # transition_scores[0] only contains the scores for the first generated tokens.
-        start_off = 0
         log_likelihoods = [score.item() for score in transition_scores[0]]
-        log_likelihoods = log_likelihoods[start_off:token_stop_index - n_tokens_in_input]
+        log_likelihoods = log_likelihoods[:n_generated]
+
+        # For debugging purposes:
+        # Can compare self.tokenizer.encode(sliced_answer) to len(log_likelihoods).
+        # But can be off by one due to whitespaces.
+
+        # falcon-7b
+        # len(hidden), len(hidden[0]), hidden[0][0].shape, hidden[1][0].shape, hidden[1][-1].shape, hidden[token_stop_index - 1][-1].shape
+        # (4, 33, torch.Size([1, 53, 4544]), torch.Size([1, 54, 4544]), torch.Size([1, 54, 4544]), torch.Size([1, 55, 4544]))
+        # llama-7b
+        # (3, 33, torch.Size([1, 60, 4544]), torch.Size([1, 61, 4544]), torch.Size([1, 61, 4544]), torch.Size([1, 61, 4544]))
+
+        if len(log_likelihoods) == MAX_NEW_TOKENS:
+            logging.warning('Generation interrupted by max_token limit.')
 
         if len(log_likelihoods) == 0:
-            logging.warning(
-                (
-                    'len(log_likelihoods) == 0 after answer slicing, take last '
-                    'loglik instead.\n'
-                    'Answer: \n""""\n%s\n"""\nSliced Answer:\n""""\n%s\n"""'
-                ),
-                answer, sliced_answer)
-            log_likelihoods = [transition_scores[0][-1].item()]
+            raise ValueError
+            # logging.warning(
+            #     (
+            #         'len(log_likelihoods) == 0 after answer slicing, take last '
+            #         'loglik instead.\n'
+            #         'Answer: \n""""\n%s\n"""\nSliced Answer:\n""""\n%s\n"""'
+            #     ),
+            #     answer, sliced_answer)
+            # log_likelihoods = [transition_scores[0][-1].item()]
         return sliced_answer, log_likelihoods, last_token_embedding
 
     def get_p_true(self, input_data):
