@@ -1,102 +1,132 @@
 """Implement HuggingfaceModel models."""
-# pip install accelerate transformers bitsandbytes
 import logging
+from collections import Counter
+import numpy as np
 import torch
-from transformers import AutoTokenizer, T5ForConditionalGeneration, AutoModelForCausalLM, AutoConfig, BitsAndBytesConfig
-from transformers import LlamaTokenizer
+import torch.utils._pytree as pytree
+
 import accelerate
+
+from transformers import AutoTokenizer
+from transformers import AutoConfig
+from transformers import AutoModelForCausalLM
+from transformers import BitsAndBytesConfig
+from huggingface_hub import snapshot_download
 
 
 from uncertainty.models.base_model import BaseModel
 
+def remove_split_layer(device_map):
+    """Modify device maps s.t. individual layers are not spread across devices."""
 
-class HuggingfaceModel(BaseModel):
+    destinations = list(device_map.keys())
+
+    counts = Counter(['.'.join(i.split('.')[:2]) for i in destinations])
+
+    found_split = False
+    for layer, count in counts.items():
+        if count == 1:
+            continue
+
+        if found_split:
+            raise ValueError('More than one split layer')
+
+        print(f'Split layer is {layer}')
+
+        # remove split for that layer
+        for name in list(device_map.keys()):
+            if name.startswith(layer):
+                print(f'pop {name}')
+                device = device_map.pop(name)
+
+        device_map[layer] = device
+        found_split = True
+
+    return device_map
+
+
+class HuggingfaceModel():
     """HuggingfaceModel."""
 
     def __init__(self, model_name, stop_sequences=None):
 
-        if model_name == "FlanUL2":
-            self.model = T5ForConditionalGeneration.from_pretrained(
-                "google/flan-ul2", device_map="auto", load_in_8bit=True)
-            self.tokenizer = AutoTokenizer.from_pretrained(
-                "google/flan-ul2")
-        elif model_name == "T5":
-            self.tokenizer = AutoTokenizer.from_pretrained(
-                "t5-small", device_map="auto")
-            self.model = T5ForConditionalGeneration.from_pretrained(
-                "t5-small", device_map="auto")
 
-        elif 'llama' in model_name:
+        if 'llama' in model_name.lower():
+
+            if model_name.endswith('-8bit'):
+                kwargs = {'quantization_config': BitsAndBytesConfig(
+                    load_in_8bit=True,)}
+                model_name = model_name[:-len('-8bit')]
+            else:
+                kwargs = {}
+
+            if 'Llama-2' in model_name:
+                base = 'meta-llama'
+                model_name = model_name + '-hf'
+            else:
+                base = 'huggyllama'
+
             self.tokenizer = AutoTokenizer.from_pretrained(
-                f"huggyllama/{model_name}", device_map="auto", token_type_ids=None)
+                f"{base}/{model_name}", device_map="auto",
+                token_type_ids=None)
+
+            llama65b = '65b' in model_name and base == 'huggyllama'
+            llama2_70b = '70b' in model_name and base == 'meta-llama'
 
             if '7b' in model_name or '13b' in model_name:
-                # kwargs = {'quantization_config': BitsAndBytesConfig(
-                #   load_in_8bit=True,)}
-                kwargs = {}
-                # print(100*"WARNING ")
                 self.model = AutoModelForCausalLM.from_pretrained(
-                    f"huggyllama/{model_name}", device_map="auto", **kwargs)
-            else:
-                config = AutoConfig.from_pretrained(f"huggyllama/{model_name}")
+                    f"{base}/{model_name}", device_map="auto", **kwargs)
+
+            elif llama2_70b or llama65b:
+                path = snapshot_download(
+                    repo_id=f'{base}/{model_name}',
+                    allow_patterns=['*.json', '*.model', '*.safetensors'],
+                    ignore_patterns=['pytorch_model.bin.index.json']
+                )
+                config = AutoConfig.from_pretrained(f"{base}/{model_name}")
                 # config.load_in_8bit = True
                 with accelerate.init_empty_weights():
                     self.model = AutoModelForCausalLM.from_config(config)
                 self.model.tie_weights()
 
-                max_mem = 15 * 4686198491  # 4G*15
+                max_mem = 15 * 4686198491 # 4G*15
                 device_map = accelerate.infer_auto_device_map(
                     self.model.model,
                     max_memory={0: max_mem, 1: max_mem},
-                    dtype='float16',
+                    dtype='float16'
                 )
+                device_map = remove_split_layer(device_map)
                 full_model_device_map = {f"model.{k}": v for k, v in device_map.items()}
                 full_model_device_map["lm_head"] = 0
+
+                # get snapshot folder
                 self.model = accelerate.load_checkpoint_and_dispatch(
-                    self.model, '/scratch-ssd/oatml/llama-65b/',
-                    device_map=full_model_device_map, dtype='float16',
-                )
-
-        elif model_name == 'alpaca-lora':
-            path = 'chainyo/alpaca-lora-7b'
-            self.tokenizer = LlamaTokenizer.from_pretrained(
-                path, device_map="auto")
-            self.model = AutoModelForCausalLM.from_pretrained(
-                path, device_map="auto", load_in_8bit=True,
-                torch_dtype=torch.float16)  # pylint: disable=no-member
-
-        elif 'neo' in model_name:
-            self.tokenizer = AutoTokenizer.from_pretrained(
-                f"EleutherAI/{model_name}", device_map="auto", token_type_ids=None)
-            self.model = AutoModelForCausalLM.from_pretrained(
-                f"EleutherAI/{model_name}", device_map="auto", load_in_8bit=True,
-                torch_dtype=torch.float16)   # pylint: disable=no-member
+                    self.model, path, device_map=full_model_device_map,
+                    dtype='float16')
+            else:
+                raise ValueError
 
         elif 'falcon' in model_name:
-            # NOTE: without `clean_up_tokenization_spaces=False`, we cannot guarantee that
-            # answer[:len(input_data)] = input_data, because decode(encode(text)) != text.
+            model_id = f'tiiuae/{model_name}'
             self.tokenizer = AutoTokenizer.from_pretrained(
-                f"tiiuae/{model_name}", device_map='auto', token_type_ids=None,
+                model_id, device_map='auto', token_type_ids=None,
                 clean_up_tokenization_spaces=False)
 
             kwargs = {'quantization_config': BitsAndBytesConfig(
                 load_in_8bit=True,)}
-            self.model = AutoModelForCausalLM.from_pretrained(
-                f"tiiuae/{model_name}",
-                trust_remote_code=True,
-                device_map="auto",
-                **kwargs
-            )
 
+            self.model = AutoModelForCausalLM.from_pretrained(
+                model_id,
+                trust_remote_code=True,
+                device_map='auto',
+                **kwargs,
+            )
         else:
             raise ValueError
 
         self.model_name = model_name
         self.stop_sequences = stop_sequences
 
-    def train(self, data):
-        # Implement training.
-        pass
 
     def predict(self, input_data, temperature):
 
