@@ -32,7 +32,7 @@ class HuggingfaceModel(BaseModel):
 
             if '7b' in model_name or '13b' in model_name:
                 # kwargs = {'quantization_config': BitsAndBytesConfig(
-                    # load_in_8bit=True,)}
+                #   load_in_8bit=True,)}
                 kwargs = {}
                 # print(100*"WARNING ")
                 self.model = AutoModelForCausalLM.from_pretrained(
@@ -201,7 +201,6 @@ class HuggingfaceModel(BaseModel):
         loss_true = model_output_true.loss
 
         return -loss_true.item()
-
 
     def get_perplexity(self, input_data):
         """Get the probability of the model anwering A (True) for the given input"""

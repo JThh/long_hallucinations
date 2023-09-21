@@ -7,7 +7,6 @@ import random
 from tqdm import tqdm
 
 import numpy as np
-import torch
 import openai
 import wandb
 from evaluate import load
@@ -192,9 +191,9 @@ for dataset_split in iter:
         it += 1
         # torch.cuda.empty_cache()  # fix memory leaks?
         # if it % 30 == 0:
-            # logging.info('REINIT MODEL TO FIGHT MEMORY LEAKS.')
-            # torch.cuda.empty_cache()  # fix memory leaks?
-            # model = init_model(args)
+        #     logging.info('REINIT MODEL TO FIGHT MEMORY LEAKS.')
+        #     torch.cuda.empty_cache()  # fix memory leaks?
+        #     model = init_model(args)
 
         # Grab example at index.
         example = dataset[index]
