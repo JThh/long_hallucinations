@@ -1,0 +1,40 @@
+name: llm
+channels:
+  - pytorch
+  - nvidia
+  - defaults
+dependencies:
+  - python=3.11
+  - pip
+  - torchvision
+  - torchaudio
+  # 11.6 for clpc57, 11.7 for oat17
+  - pytorch-cuda=11.7
+  - numpy
+  - transformers
+  - evaluate
+  - datasets
+  - pip:
+    - scikit-learn
+    - pandas
+    - flake8
+    - omegaconf
+    - jupyterlab
+    - notebook
+    - matplotlib
+    - seaborn
+    - tqdm
+    - ipywidgets
+    - scipy
+    - wandb
+    - tokenizers>=0.13.3
+    - accelerate
+    - ml_collections
+    - torchmetrics
+    - openai
+    - tiktoken
+    - einops
+    - bitsandbytes
+    - nltk
+    - tokenizers
+    - tenacity
