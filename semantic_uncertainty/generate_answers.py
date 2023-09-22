@@ -85,7 +85,7 @@ if not os.path.exists(f"/scratch-ssd/{user}/uncertainty"):
 
 wandb.init(
     entity=args.entity,
-    project="uncertainty" if not args.debug else "uncertainty_debug",
+    project="semantic_uncertainty" if not args.debug else "semantic_uncertainty_debug",
     dir=f"/scratch-ssd/{user}/uncertainty",
     config={
         "dataset": args.dataset,
@@ -156,7 +156,7 @@ logging.info('Prompt is: %s', prompt)
 if args.compute_p_true:
     logging.info(80*'#')
     logging.info('Constructing few-shot prompt for p_true.')
-    p_true_indices = random.sample(answerable_indices, args.num_fewshot)
+    p_true_indices = random.sample(answerable_indices, args.num_few_shot)
     remaining_answerable = list(set(remaining_answerable) - set(p_true_indices))
 
     p_true_few_shot_prompt = p_true_utils.construct_few_shot_prompt(
@@ -185,13 +185,13 @@ for dataset_split in ['train', 'validation']:
             logging.info('Skip training data.')
             continue
         dataset = train_dataset
-        indices = list(set(remaining_answerable) + set(unanswerable_indices))
+        possible_indices = list(set(remaining_answerable) | set(unanswerable_indices))
 
     else:
         dataset = validation_dataset
-        indices = range(0, len(dataset))
+        possible_indices = range(0, len(dataset))
 
-    possible_indices = random.sample(), min(args.num_samples, len(dataset)))
+    indices = random.sample(indices, min(args.num_samples, len(dataset)))
 
     # Evaluate over random subset of the datasets.
 
