@@ -224,6 +224,11 @@ class HuggingfaceModel(BaseModel):
         n_input_token = len(inputs['input_ids'][0])
         n_generated = token_stop_index - n_input_token  # excluding stop tokens
 
+        if n_generated == 0:
+            logging.warning('Only stop_words were generated. For likelihoods and embeddings, taking stop word instead.')
+            n_generated = 1
+
+
         # Get the last hidden state (last layer) and the last token's embedding of the answer.
         # Note: We do not want this to be the stop token.
 
