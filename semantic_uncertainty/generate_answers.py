@@ -132,7 +132,7 @@ if not os.path.exists(f"/scratch-ssd/{user}/uncertainty"):
     os.makedirs(f"/scratch-ssd/{user}/uncertainty")
 
 wandb.init(
-    project="uncertainty",
+    project="uncertainty" if not args.debug else "uncertainty_debug",
     entity=args.entity,
     dir=f"/scratch-ssd/{user}/uncertainty",
     config={
@@ -152,8 +152,9 @@ logging.info('Finished wandb init.')
 if args.compute_p_true:
     logging.info('Constructing few-shot prompt for p_true.')
     p_true_few_shot_prompt = p_true_utils.construct_few_shot_prompt(
-        model=model, dataset=train_dataset, n_shots=20, prompt=prompt,
-        brief=BRIEF, brief_always=args.brief_always, make_prompt=make_prompt)
+        model=model, dataset=train_dataset, n_shots=args.num_few_shot,
+        prompt=prompt, brief=BRIEF, brief_always=args.brief_always,
+        make_prompt=make_prompt)
     logging.info('p_true_few_shot_prompt: %s', p_true_few_shot_prompt)
 
 
