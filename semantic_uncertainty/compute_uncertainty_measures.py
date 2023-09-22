@@ -29,16 +29,16 @@ parser.add_argument('--eval_wandb_runid', type=str,
                     help='wandb run id of the dataset to evaluate on')
 parser.add_argument('--train_wandb_runid', type=str, default=None,
                     help='wandb run id of the dataset from which training embeddings and p_true samples will be taken')
-parser.add_argument('--num_eval_samples', type=int, default=200)
+parser.add_argument('--num_eval_samples', type=int, default=int(1e19))
 parser.add_argument('--compute_predictive_entropy',
-                    default=False, action=argparse.BooleanOptionalAction)
-parser.add_argument('--compute_p_ik', default=False,
+                    default=True, action=argparse.BooleanOptionalAction)
+parser.add_argument('--compute_p_ik', default=True,
                     action=argparse.BooleanOptionalAction)
 parser.add_argument('--compute_p_ik_answerable', default=False,
                     action=argparse.BooleanOptionalAction)
 parser.add_argument('--analyze_run', default=True,
                     action=argparse.BooleanOptionalAction)
-parser.add_argument('--assign_new_wandb_id', default=False,
+parser.add_argument('--assign_new_wandb_id', default=True,
                     action=argparse.BooleanOptionalAction)
 parser.add_argument('--entity', type=str, default='goatml')
 parser.add_argument('--restore_entity_eval', type=str, default='goatml')
@@ -58,7 +58,7 @@ if args.train_wandb_runid is None:
 user = os.environ['USER']
 wandb_dir = f'/scratch-ssd/{user}/uncertainty'
 slurm_jobid = os.getenv('SLURM_JOB_ID')
-project = "uncertainty" if not args.debug else "uncertainty_debug"
+project = "semantic_uncertainty" if not args.debug else "semantic_uncertainty_debug"
 if args.assign_new_wandb_id:
     logging.info('Assign new wandb_id.')
     wandb.init(
