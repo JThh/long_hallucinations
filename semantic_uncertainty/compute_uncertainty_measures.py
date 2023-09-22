@@ -58,17 +58,18 @@ if args.train_wandb_runid is None:
 user = os.environ['USER']
 wandb_dir = f'/scratch-ssd/{user}/uncertainty'
 slurm_jobid = os.getenv('SLURM_JOB_ID')
+project = "uncertainty" if not args.debug else "uncertainty_debug"
 if args.assign_new_wandb_id:
     logging.info('Assign new wandb_id.')
     wandb.init(
         entity=args.entity,
         # set the wandb project where this run will be logged
-        project='uncertainty',
+        project=project,
         dir=wandb_dir,
         notes=f'slurm_id: {slurm_jobid}',
     )
     api = wandb.Api()
-    old_run = api.run(f'{args.restore_entity_eval}/uncertainty/{args.eval_wandb_runid}')
+    old_run = api.run(f'{args.restore_entity_eval}/{project}/{args.eval_wandb_runid}')
     wandb.config.update(old_run.config)
 
     def restore(filename):
@@ -84,7 +85,6 @@ else:
     wandb.init(
         project="uncertainty" if not args.debug else "uncertainty_debug",
         entity=args.entity,
-        project='uncertainty',
         dir=wandb_dir,
         id=args.eval_wandb_runid,
         resume=True,
