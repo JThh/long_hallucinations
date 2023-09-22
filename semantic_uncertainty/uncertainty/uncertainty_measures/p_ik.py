@@ -1,4 +1,5 @@
 """Predict model correctness from linear classifier."""
+import os
 import logging
 
 import matplotlib.pyplot as plt
@@ -74,6 +75,7 @@ def get_p_ik(train_embeddings, is_false, eval_embeddings=None, eval_is_false=Non
     # TODO: Add this plot to wandb!
     axes[0].set_ylabel('Counts')
     axes[1].set_xlabel('Predicted Probabilities')
+    os.system('mkdir -p figures')
     plt.savefig('figures/p_ik.png')  # Can be viewed in vscode w/o plugins.
     plt.savefig('figures/p_ik.pdf')  # Vector graphics are nice.
 
