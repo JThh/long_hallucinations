@@ -1,4 +1,5 @@
 """Implement HuggingfaceModel models."""
+import copy
 import logging
 from collections import Counter
 import torch
@@ -48,9 +49,10 @@ class StoppingCriteriaSub(StoppingCriteria):
         return False
 
 
-def remove_split_layer(device_map):
+def remove_split_layer(device_map_in):
     """Modify device maps s.t. individual layers are not spread across devices."""
 
+    device_map = copy.deepcopy(device_map_in)
     destinations = list(device_map.keys())
 
     counts = Counter(['.'.join(i.split('.')[:2]) for i in destinations])
@@ -61,9 +63,14 @@ def remove_split_layer(device_map):
             continue
 
         if found_split:
-            raise ValueError('More than one split layer')
+            # Only triggers if we find more than one split layer!
+            raise ValueError(
+                'More than one split layer.\n'
+                f'Currently at layer {layer}.\n'
+                f'In map: {device_map_in}\n'
+                f'Out map: {device_map}\n')
 
-        print(f'Split layer is {layer}')
+        logging.info(f'Split layer is {layer}.')
 
         # remove split for that layer
         for name in list(device_map.keys()):
@@ -119,8 +126,11 @@ class HuggingfaceModel(BaseModel):
                 with accelerate.init_empty_weights():
                     self.model = AutoModelForCausalLM.from_config(config)
                 self.model.tie_weights()
-
-                max_mem = 15 * 4686198491  # 4G * 15
+                if model_name == 'LLama-2-70b-chat':
+                    logging.warning('Raising max mem for llama-2-chat?')
+                    max_mem = 17.5 * 4686198491
+                else:
+                    max_mem = 15 * 4686198491  # 4G * 15
                 device_map = accelerate.infer_auto_device_map(
                     self.model.model,
                     max_memory={0: max_mem, 1: max_mem},
@@ -157,8 +167,7 @@ class HuggingfaceModel(BaseModel):
 
         self.model_name = model_name
         self.stop_sequences = stop_sequences + [self.tokenizer.eos_token]
-        self.token_limit = 4096 if 'Llama-2' not in model_name else 2048
-
+        self.token_limit = 4096 if 'Llama-2' in model_name else 2048
 
     def predict(self, input_data, temperature):
 
@@ -169,10 +178,10 @@ class HuggingfaceModel(BaseModel):
 
         # Implement prediction.
         inputs = self.tokenizer(input_data, return_tensors="pt").to("cuda")
-        if 'llama' in self.model_name or 'falcon' in self.model_name:
+        if 'llama' in self.model_name.lower() or 'falcon' in self.model_name:
             if 'token_type_ids' in inputs:  # seems to have been updated
                 del inputs['token_type_ids']
-                pad_token_id = self.tokenizer.eos_token_id
+            pad_token_id = self.tokenizer.eos_token_id
         else:
             pad_token_id = None
 
