@@ -28,12 +28,13 @@ def construct_few_shot_prompt(model, dataset, indices, prompt, brief, brief_alwa
 
     # TODO: Why are we not using the context to construct the p_true few-shot prompt?
 
-    for i in indices:
+    for it, i in enumerate(indices):
         example = dataset[i]
         question = example["question"]
         context = example["context"]
-
-        few_shot_prompt += '\nQuestion: ' + question
+        if it != 0:
+            few_shot_prompt += '\n'
+        few_shot_prompt += 'Question: ' + question
         few_shot_prompt += '\nBrainstormed Answers: '
         current_question = make_prompt(context, question, None, brief, brief_always)
         local_prompt = prompt + current_question
