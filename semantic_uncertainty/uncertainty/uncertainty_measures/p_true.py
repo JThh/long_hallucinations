@@ -8,7 +8,7 @@ squad_metric = load("squad_v2")
 
 
 PROMPT_TEMPLATE = """Question: Who was the third president of the United States?
-Here are some brainstormed ideas: James Monroe
+Brainstormed Answers: James Monroe
 Thomas Jefferson
 John Adams
 Thomas Jefferson
@@ -27,7 +27,9 @@ def construct_few_shot_prompt(model, dataset, n_shots, prompt, brief, brief_alwa
     few_shot_prompt = ''
 
     # sample n_shot integers without replacement from the range 0, len(dataset) - 1
-    indices = random.sample(range(0, len(dataset) - 1), n_shots)
+    indices = random.sample(range(0, len(dataset)), n_shots)
+
+    # TODO: Why are we not using the context to construct the p_true few-shot prompt?
 
     for i in indices:
         example = dataset[i]
@@ -36,7 +38,9 @@ def construct_few_shot_prompt(model, dataset, n_shots, prompt, brief, brief_alwa
 
         few_shot_prompt += '\nQuestion: ' + question
         few_shot_prompt += '\nBrainstormed Answers: '
-        local_prompt = prompt + make_prompt(context, question, None, brief, brief_always)
+        current_question = make_prompt(context, question, None, brief, brief_always)
+        local_prompt = prompt + current_question
+        logging.info('P_TRUE >> Current Question: '.ljust(25) +  current_question)
 
         responses = []
         for j in range(5):
@@ -47,18 +51,22 @@ def construct_few_shot_prompt(model, dataset, n_shots, prompt, brief, brief_alwa
                 temperature = 1.0
 
             response, _, _ = model.predict(local_prompt, temperature)
+            logging.info('P_TRUE >> Current Response: '.ljust(25) + response)
 
             responses.append(response)
             few_shot_prompt += f'{response.strip()} \n'
             if j == 0:
+                # Save most likely response and compute correctness metric for it.
                 most_likely_response = response
                 prediction = {'prediction_text': response, 'no_answer_probability': 0.0, 'id': example['id']}
                 answer_starts = [answer_start for answer_start in example['answers']['answer_start']]
                 answers = [answer for answer in example['answers']['text']]
                 reference = {'answers': {'answer_start': answer_starts, 'text': answers}, 'id': example['id']}
                 results = squad_metric.compute(predictions=[prediction], references=[reference])
-                logging.info('Fewshot prompt results: %s', results)
                 is_correct = results['f1'] > 50.0
+                logging.info('P_TRUE >> LOW-T >> answer: '.ljust(35) + str(answers))
+                logging.info('P_TRUE >> LOW-T >> results: '.ljust(35) + str(results))
+                logging.info('P_TRUE >> LOW-T >> acc: '.ljust(35) + str(is_correct))
 
         few_shot_prompt += 'Possible answer: ' + most_likely_response + '\n'
         few_shot_prompt += 'Is the possible answer:\n'
@@ -74,6 +82,7 @@ def calculate_p_true(model, question, most_probable_answer, brainstormed_answers
     """Calculate p_true uncertainty metric."""
 
     prompt = PROMPT_TEMPLATE + few_shot_prompt
+
     prompt += '\nQuestion: ' + question
     prompt += '\nBrainstormed Answers: '
     for answer in brainstormed_answers + [most_probable_answer]:

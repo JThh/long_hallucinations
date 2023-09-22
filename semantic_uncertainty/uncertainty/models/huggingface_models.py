@@ -170,8 +170,11 @@ class HuggingfaceModel(BaseModel):
         # Implement prediction.
         inputs = self.tokenizer(input_data, return_tensors="pt").to("cuda")
         if 'llama' in self.model_name or 'falcon' in self.model_name:
-            if 'token_type_ids' in inputs:
+            if 'token_type_ids' in inputs:  # seems to have been updated
                 del inputs['token_type_ids']
+                pad_token_id = self.tokenizer.eos_token_id
+        else:
+            pad_token_id = None
 
         stopping_criteria = StoppingCriteriaList([StoppingCriteriaSub(
             stops=self.stop_sequences,
@@ -188,7 +191,8 @@ class HuggingfaceModel(BaseModel):
                 output_hidden_states=True,
                 temperature=temperature,
                 do_sample=True,
-                stopping_criteria=stopping_criteria
+                stopping_criteria=stopping_criteria,
+                pad_token_id=pad_token_id,
             )
         if len(outputs.sequences[0]) > self.token_limit:
             raise ValueError(
@@ -219,7 +223,7 @@ class HuggingfaceModel(BaseModel):
 
         # Remove whitespaces from answer (in particular from beginning.)
         sliced_answer = sliced_answer.strip()
-        logging.info('Generation for temperature `%.2f` is `%s`.', temperature, sliced_answer)
+        # logging.info('Generation for temperature `%.2f` is `%s`.', temperature, sliced_answer)
 
         # Get the number of tokens until the stop word comes up.
         # Note: Indexing with `stop_at` already excludes the stop_token.

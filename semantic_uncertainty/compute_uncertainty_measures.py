@@ -22,6 +22,9 @@ utils.setup_logger()
 
 
 parser = argparse.ArgumentParser()
+parser.add_argument(
+    "--debug", action=argparse.BooleanOptionalAction, default=False,
+    help="Keep default wandb clean.")
 parser.add_argument('--eval_wandb_runid', type=str,
                     help='wandb run id of the dataset to evaluate on')
 parser.add_argument('--train_wandb_runid', type=str, default=None,
@@ -79,7 +82,7 @@ if args.assign_new_wandb_id:
 else:
     logging.info('Reuse old wandb id.')
     wandb.init(
-        # set the wandb project where this run will be logged
+        project="uncertainty" if not args.debug else "uncertainty_debug",
         entity=args.entity,
         project='uncertainty',
         dir=wandb_dir,

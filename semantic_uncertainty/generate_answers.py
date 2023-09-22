@@ -78,54 +78,6 @@ if unknown:
     raise ValueError(f'Unkown args: {unknown}')
 # Load SQuAD dataset from Hugging Face
 
-train_dataset, validation_dataset = load_ds(
-    args.dataset, add_options=args.use_mc_options)
-logging.info('Train dataset: %s', train_dataset)
-
-squad_metric = load("squad_v2")
-
-
-# Get indices of answerable and unanswerable questions and construct prompt.
-answerable_indices, unanswerable_indices = utils.split_dataset(train_dataset)
-prompt_indices = random.sample(answerable_indices, args.num_few_shot)
-experiment_details['prompt_indices'] = prompt_indices
-
-
-def make_prompt(context, question, answer, brief, brief_always):
-    prompt = ''
-    if brief_always:
-        prompt += brief
-    if context is not None:
-        prompt += f"Context: {context}\n"
-    prompt += f"Question: {question}\n"
-    if answer:
-        prompt += f"Answer: {answer}\n\n"
-    else:
-        prompt += 'Answer:'
-    return prompt
-
-
-BRIEF = "Answer the following question as briefly as possible.\n"
-STOP_SEQUENCES = ['\n', 'Question:', 'Context:']
-
-prompt = utils.construct_fewshot_prompt_from_indices(
-    train_dataset, prompt_indices, BRIEF, args.brief_always, make_prompt)
-logging.info('Prompt is: %s', prompt)
-
-
-def init_model(args):
-    mn = args.model_name
-    if 'llama' in mn.lower() or 'falcon' in mn:
-        model = HuggingfaceModel(mn, stop_sequences=STOP_SEQUENCES)
-    elif mn.startswith('oai'):
-        model = OpenAIModel(mn.split('.')[1], stop_sequences=STOP_SEQUENCES)
-    else:
-        raise ValueError(f'Unknown model_name `{mn}`.')
-    return model
-
-
-model = init_model(args)
-
 user = os.environ['USER']
 slurm_jobid = os.getenv('SLURM_JOB_ID')
 if not os.path.exists(f"/scratch-ssd/{user}/uncertainty"):
@@ -149,16 +101,72 @@ wandb.init(
 logging.info('Finished wandb init.')
 
 
+train_dataset, validation_dataset = load_ds(
+    args.dataset, add_options=args.use_mc_options)
+logging.info('Train dataset: %s', train_dataset)
+squad_metric = load("squad_v2")
+
+
+STOP_SEQUENCES = ['\n', 'Question:', 'Context:']
+
+
+def init_model(args):
+    mn = args.model_name
+    if 'llama' in mn.lower() or 'falcon' in mn:
+        model = HuggingfaceModel(mn, stop_sequences=STOP_SEQUENCES)
+    elif mn.startswith('oai'):
+        model = OpenAIModel(mn.split('.')[1], stop_sequences=STOP_SEQUENCES)
+    else:
+        raise ValueError(f'Unknown model_name `{mn}`.')
+    return model
+
+
+model = init_model(args)
+
+
+# Get indices of answerable and unanswerable questions and construct prompt.
+answerable_indices, unanswerable_indices = utils.split_dataset(train_dataset)
+prompt_indices = random.sample(answerable_indices, args.num_few_shot)
+experiment_details['prompt_indices'] = prompt_indices
+
+
+def make_prompt(context, question, answer, brief, brief_always):
+    prompt = ''
+    if brief_always:
+        prompt += brief
+    if context is not None:
+        prompt += f"Context: {context}\n"
+    prompt += f"Question: {question}\n"
+    if answer:
+        prompt += f"Answer: {answer}\n\n"
+    else:
+        prompt += 'Answer:'
+    return prompt
+
+
+BRIEF = "Answer the following question as briefly as possible.\n"
+
+prompt = utils.construct_fewshot_prompt_from_indices(
+    train_dataset, prompt_indices, BRIEF, args.brief_always, make_prompt)
+logging.info('Prompt is: %s', prompt)
+
+
 if args.compute_p_true:
+    logging.info(80*'#')
     logging.info('Constructing few-shot prompt for p_true.')
     p_true_few_shot_prompt = p_true_utils.construct_few_shot_prompt(
         model=model, dataset=train_dataset, n_shots=args.num_few_shot,
         prompt=prompt, brief=BRIEF, brief_always=args.brief_always,
         make_prompt=make_prompt)
+    logging.info('Finished constructing few-shot prompt for p_true.')
+    logging.info(80*'#')
     logging.info('p_true_few_shot_prompt: %s', p_true_few_shot_prompt)
+    logging.info(80*'#')
 
 
+logging.info(80 * '=')
 logging.info('Generating answers: ')
+logging.info(80 * '=')
 for dataset_split in ['train', 'validation']:
     logging.info('Starting with dataset_split %s.', dataset_split)
 
@@ -178,7 +186,7 @@ for dataset_split in ['train', 'validation']:
     experiment_details[dataset_split] = {'indices': indices}
 
     if args.num_samples > len(dataset):
-        logging.info('Not enough samples in dataset. Using all %d samples.', len(dataset))
+        logging.warning('Not enough samples in dataset. Using all %d samples.', len(dataset))
 
     it = 0
     for index in tqdm(indices):
@@ -195,9 +203,11 @@ for dataset_split in ['train', 'validation']:
                 'text': correct_answer},
             'id': example['id']}
 
-        local_prompt = prompt + make_prompt(context, question, None, BRIEF, args.brief_always)
+        current_input = make_prompt(context, question, None, BRIEF, args.brief_always)
+        local_prompt = prompt + current_input
 
-        logging.info(local_prompt)
+        logging.info('Current input: '.ljust(15) + current_input)
+
         full_responses = []
         # We sample 1 low temperature answer on which we will compute the
         # accuracy and args.num_generation high temperature answers which will
@@ -235,13 +245,13 @@ for dataset_split in ['train', 'validation']:
                 acc = 0.0  # pylint: disable=invalid-name
 
             if i == 0:
-                logging.info(80*'#')
-                logging.info('context'.ljust(15), context)
-                logging.info('question'.ljust(15), question)
-                logging.info('predicted answer:'.ljust(15), predicted_answer)
-                logging.info('correct answer:'.ljust(15), correct_answer)
-                logging.info('results:'.ljust(15), results)
-                logging.info('accuracy:'.ljust(15), acc)
+                logging.info('Iteration ' + str(it) + ':  ' + 80*'#')
+                logging.info('context: '.ljust(15) + str(context))
+                logging.info('question: '.ljust(15) + question)
+                logging.info('low-t prediction: '.ljust(15) + predicted_answer)
+                logging.info('correct answer: '.ljust(15) + str(correct_answer))
+                logging.info('accuracy: '.ljust(15) + str(acc))
+                logging.info('results: '.ljust(15) + str(results))
 
                 accuracies.append(acc)
                 most_likely_answer_dict = {
@@ -256,6 +266,7 @@ for dataset_split in ['train', 'validation']:
                     'reference': reference,
                 })
             else:
+                logging.info('high-t prediction '.ljust(15) + str(i) + ' : ' + predicted_answer)
                 # Aggregate predictions over num_generations.
                 full_responses.append(
                     (predicted_answer, token_log_likelihoods, embedding, acc))
