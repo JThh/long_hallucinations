@@ -129,6 +129,7 @@ model = init_model(args)
 answerable_indices, unanswerable_indices = utils.split_dataset(train_dataset)
 prompt_indices = random.sample(answerable_indices, args.num_few_shot)
 experiment_details['prompt_indices'] = prompt_indices
+remaining_answerable = list(set(answerable_indices) - set(prompt_indices))
 
 
 def make_prompt(context, question, answer, brief, brief_always):
@@ -155,8 +156,11 @@ logging.info('Prompt is: %s', prompt)
 if args.compute_p_true:
     logging.info(80*'#')
     logging.info('Constructing few-shot prompt for p_true.')
+    p_true_indices = random.sample(answerable_indices, args.num_fewshot)
+    remaining_answerable = list(set(remaining_answerable) - set(p_true_indices))
+
     p_true_few_shot_prompt = p_true_utils.construct_few_shot_prompt(
-        model=model, dataset=train_dataset, n_shots=args.num_few_shot,
+        model=model, dataset=train_dataset, indices=p_true_indices,
         prompt=prompt, brief=BRIEF, brief_always=args.brief_always,
         make_prompt=make_prompt)
     logging.info('Finished constructing few-shot prompt for p_true.')
@@ -169,7 +173,9 @@ logging.info(80 * '=')
 logging.info('Generating answers: ')
 logging.info(80 * '=')
 for dataset_split in ['train', 'validation']:
+    logging.info(80 * 'x')
     logging.info('Starting with dataset_split %s.', dataset_split)
+    logging.info(80 * 'x')
 
     # This will store all input data and model predictions.
     accuracies, generations, results_dict, p_trues = [], {}, {}, []
@@ -179,11 +185,16 @@ for dataset_split in ['train', 'validation']:
             logging.info('Skip training data.')
             continue
         dataset = train_dataset
+        indices = list(set(remaining_answerable) + set(unanswerable_indices))
+
     else:
         dataset = validation_dataset
+        indices = range(0, len(dataset))
+
+    possible_indices = random.sample(), min(args.num_samples, len(dataset)))
 
     # Evaluate over random subset of the datasets.
-    indices = random.sample(range(0, len(dataset)), min(args.num_samples, len(dataset)))
+
     experiment_details[dataset_split] = {'indices': indices}
 
     if args.num_samples > len(dataset):

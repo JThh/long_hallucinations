@@ -20,14 +20,11 @@ B) False
 The possible answer is: B"""
 
 
-def construct_few_shot_prompt(model, dataset, n_shots, prompt, brief, brief_always, make_prompt):
+def construct_few_shot_prompt(model, dataset, indices, prompt, brief, brief_always, make_prompt):
     """Construct few shot prompt for p_true uncertainty metric."""
 
     # Call model n_shots many times
     few_shot_prompt = ''
-
-    # sample n_shot integers without replacement from the range 0, len(dataset) - 1
-    indices = random.sample(range(0, len(dataset)), n_shots)
 
     # TODO: Why are we not using the context to construct the p_true few-shot prompt?
 
