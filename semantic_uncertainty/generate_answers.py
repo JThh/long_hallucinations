@@ -72,6 +72,7 @@ parser.add_argument(
 
 
 args, unknown = parser.parse_known_args()
+logging.info('Starting new run with args: %s', args)
 experiment_details = {'args': args}
 if unknown:
     raise ValueError(f'Unkown args: {unknown}')
@@ -233,10 +234,13 @@ for dataset_split in ['train', 'validation']:
                 acc = 0.0  # pylint: disable=invalid-name
 
             if i == 0:
-                print('predicted answer:'.ljust(15), predicted_answer)
-                print('correct answer:'.ljust(15), correct_answer)
-                print('results:'.ljust(15), results)
-                print('accuracy:'.ljust(15), acc)
+                logging.info(80*'#')
+                logging.info('context'.ljust(15), context)
+                logging.info('question'.ljust(15), question)
+                logging.info('predicted answer:'.ljust(15), predicted_answer)
+                logging.info('correct answer:'.ljust(15), correct_answer)
+                logging.info('results:'.ljust(15), results)
+                logging.info('accuracy:'.ljust(15), acc)
 
                 accuracies.append(acc)
                 most_likely_answer_dict = {
