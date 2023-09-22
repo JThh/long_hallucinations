@@ -6,15 +6,17 @@ channels:
 dependencies:
   - python=3.11
   - pip
+  - pytorch
   - torchvision
   - torchaudio
   # 11.6 for clpc57, 11.7 for oat17
   - pytorch-cuda=11.7
   - numpy
-  - transformers
+  # - transformers
   - evaluate
   - datasets
   - pip:
+    - transformers>=4.31
     - scikit-learn
     - pandas
     - flake8
@@ -36,5 +38,4 @@ dependencies:
     - einops
     - bitsandbytes
     - nltk
-    - tokenizers
     - tenacity
