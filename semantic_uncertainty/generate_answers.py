@@ -84,8 +84,8 @@ if not os.path.exists(f"/scratch-ssd/{user}/uncertainty"):
     os.makedirs(f"/scratch-ssd/{user}/uncertainty")
 
 wandb.init(
-    project="uncertainty" if not args.debug else "uncertainty_debug",
     entity=args.entity,
+    project="uncertainty" if not args.debug else "uncertainty_debug",
     dir=f"/scratch-ssd/{user}/uncertainty",
     config={
         "dataset": args.dataset,
