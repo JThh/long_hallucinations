@@ -191,10 +191,8 @@ for dataset_split in ['train', 'validation']:
         dataset = validation_dataset
         possible_indices = range(0, len(dataset))
 
-    indices = random.sample(indices, min(args.num_samples, len(dataset)))
-
     # Evaluate over random subset of the datasets.
-
+    indices = random.sample(possible_indices, min(args.num_samples, len(dataset)))
     experiment_details[dataset_split] = {'indices': indices}
 
     if args.num_samples > len(dataset):
