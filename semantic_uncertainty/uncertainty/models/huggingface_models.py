@@ -190,7 +190,7 @@ class HuggingfaceModel(BaseModel):
             )
 
         full_answer = self.tokenizer.decode(
-            outputs.sequences[0], skip_special_tokens=False)
+            outputs.sequences[0], skip_special_tokens=True)
 
         # For some models, we need to remove the input_data from the answer.
         if full_answer.startswith(input_data):
