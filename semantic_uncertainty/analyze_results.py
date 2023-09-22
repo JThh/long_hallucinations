@@ -27,7 +27,7 @@ def init_wandb(wandb_runid, assign_new_wandb_id):
     user = os.environ['USER']
     kwargs = dict(
         entity='goatml',
-        project='uncertainty',
+        project='semantic_uncertainty',
         dir=f'/scratch-ssd/{user}/uncertainty',
     )
     if not assign_new_wandb_id:
@@ -75,15 +75,25 @@ def analyze_run(wandb_runid, assign_new_wandb_id=False, answer_fractions_mode='d
 
     if wandb.run is None:
         init_wandb(wandb_runid, assign_new_wandb_id=assign_new_wandb_id)
+
     elif wandb.run.id != wandb_runid:
         raise
 
-    # Load the uncertainty measures dictionary from a pickle file.
+    # Load the results dictionary from a pickle file.
     with open(f'{wandb.run.dir}/{UNC_MEAS}', 'rb') as file:
         results_old = pickle.load(file)
 
-    result_dict[wandb_runid] = {}
+    result_dict = {'performance': {}, 'uncertainty': {}}
 
+    # First: Compute Simple Accuracy metrics of the model predictions
+    all_accuracies = {name: 1 - np.array(data) for name, data in results_old['alt_validation_is_false'].items()}
+    all_accuracies['accuracy'] = 1 - np.array(results_old['validation_is_false'])
+    for name, target in all_accuracies.items():
+        result_dict['performance'][name] = {}
+        result_dict['performance'][name]['mean'] = np.mean(target)
+        result_dict['performance'][name]['bootstrap'] = bootstrap(np.mean, rng)(target)
+
+    # Next: Uncertainty Measures
     # Iterate through the dictionary and compute additional metrics for each measure.
     for measure_name, measure_values in results_old['uncertainty_measures'].items():
         logging.info('Computing for uncertainty measure `%s`.', measure_name)
@@ -107,7 +117,7 @@ def analyze_run(wandb_runid, assign_new_wandb_id=False, answer_fractions_mode='d
         # Iterate over predictions of 'falseness' or 'answerability'.
         for validation_is_false, logging_name in zip(validation_is_falses, logging_names):
             name = measure_name + logging_name
-            result_dict[wandb_runid][name] = {}
+            result_dict['uncertainty'][name] = {}
 
             validation_is_false = np.array(validation_is_false)
             validation_accuracy = 1 - validation_is_false
@@ -122,12 +132,13 @@ def analyze_run(wandb_runid, assign_new_wandb_id=False, answer_fractions_mode='d
 
             for fname, (function, bs_function) in eval_metrics.items():
                 metric_i = function(*fargs[fname])
-                result_dict[wandb_runid][name][fname] = metric_i
+                result_dict['uncertainty'][name][fname] = {}
+                result_dict['uncertainty'][name][fname]['mean'] = metric_i
                 logging.info("%s for measure name `%s`: %f", fname, name, metric_i)
-                result_dict[wandb_runid][name][f'{fname}_bootstrap'] = bs_function(
+                result_dict['uncertainty'][name][fname]['bootstrap'] = bs_function(
                     function, rng)(*fargs[fname])
 
-    wandb.log(result_dict[wandb_runid])
+    wandb.log(result_dict)
     logging.info(
         'Analysis for wandb_runid `%s` finished. Full results dict: %s',
         wandb_runid, result_dict
