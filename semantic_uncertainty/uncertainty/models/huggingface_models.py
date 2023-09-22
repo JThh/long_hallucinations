@@ -157,6 +157,8 @@ class HuggingfaceModel(BaseModel):
 
         self.model_name = model_name
         self.stop_sequences = stop_sequences + [self.tokenizer.eos_token]
+        self.token_limit = 4096 if 'Llama-2' not in model_name else 2048
+
 
     def predict(self, input_data, temperature):
 
@@ -188,6 +190,10 @@ class HuggingfaceModel(BaseModel):
                 do_sample=True,
                 stopping_criteria=stopping_criteria
             )
+        if len(outputs.sequences[0]) > self.token_limit:
+            raise ValueError(
+                'Generation exceeding token limit %d > %d',
+                len(outputs.sequences[0]), self.token_limit)
 
         full_answer = self.tokenizer.decode(
             outputs.sequences[0], skip_special_tokens=True)
