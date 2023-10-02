@@ -169,7 +169,7 @@ class HuggingfaceModel(BaseModel):
         self.stop_sequences = stop_sequences + [self.tokenizer.eos_token]
         self.token_limit = 4096 if 'Llama-2' in model_name else 2048
 
-    def predict(self, input_data, temperature):
+    def predict(self, input_data, temperature, return_full=False):
 
         # TODO @lorenz: Investigate this for clarify. Why are the inputs tuples sometimes?
         if isinstance(input_data, tuple):
@@ -185,10 +185,13 @@ class HuggingfaceModel(BaseModel):
         else:
             pad_token_id = None
 
-        stopping_criteria = StoppingCriteriaList([StoppingCriteriaSub(
-            stops=self.stop_sequences,
-            initial_length=len(inputs['input_ids'][0]),
-            tokenizer=self.tokenizer)])
+        if self.stop_sequences is not None:
+            stopping_criteria = StoppingCriteriaList([StoppingCriteriaSub(
+                stops=self.stop_sequences,
+                initial_length=len(inputs['input_ids'][0]),
+                tokenizer=self.tokenizer)])
+        else:
+            stopping_criteria = None
 
         logging.debug('temperature: %f', temperature)
         with torch.no_grad():
@@ -211,6 +214,9 @@ class HuggingfaceModel(BaseModel):
         full_answer = self.tokenizer.decode(
             outputs.sequences[0], skip_special_tokens=True)
 
+        if return_full:
+            return full_answer
+
         # For some models, we need to remove the input_data from the answer.
         if full_answer.startswith(input_data):
             input_data_offset = len(input_data)
@@ -223,12 +229,13 @@ class HuggingfaceModel(BaseModel):
         # Remove stop_words from answer.
         stop_at = len(answer)
         sliced_answer = answer
-        for stop in self.stop_sequences:
-            if answer.endswith(stop):
-                stop_at = len(answer) - len(stop)
-                sliced_answer = answer[:stop_at]
-                break
-        assert all([stop not in sliced_answer for stop in self.stop_sequences])
+        if self.stop_sequences is not None:
+            for stop in self.stop_sequences:
+                if answer.endswith(stop):
+                    stop_at = len(answer) - len(stop)
+                    sliced_answer = answer[:stop_at]
+                    break
+            assert all([stop not in sliced_answer for stop in self.stop_sequences])
 
         # Remove whitespaces from answer (in particular from beginning.)
         sliced_answer = sliced_answer.strip()
