@@ -206,6 +206,7 @@ class HuggingfaceModel(BaseModel):
                 stopping_criteria=stopping_criteria,
                 pad_token_id=pad_token_id,
             )
+
         if len(outputs.sequences[0]) > self.token_limit:
             raise ValueError(
                 'Generation exceeding token limit %d > %d',

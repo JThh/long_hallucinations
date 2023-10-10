@@ -7,19 +7,6 @@ from evaluate import load
 squad_metric = load("squad_v2")
 
 
-PROMPT_TEMPLATE = """Question: Who was the third president of the United States?
-Brainstormed Answers: James Monroe
-Thomas Jefferson
-John Adams
-Thomas Jefferson
-George Washington
-Possible Answer: James Monroe
-Is the possible answer:
-A) True
-B) False
-The possible answer is: B"""
-
-
 def construct_few_shot_prompt(model, dataset, indices, prompt, brief, brief_always, make_prompt):
     """Construct few shot prompt for p_true uncertainty metric."""
 
@@ -79,7 +66,7 @@ def construct_few_shot_prompt(model, dataset, indices, prompt, brief, brief_alwa
 def calculate_p_true(model, question, most_probable_answer, brainstormed_answers, few_shot_prompt):
     """Calculate p_true uncertainty metric."""
 
-    prompt = PROMPT_TEMPLATE + few_shot_prompt
+    prompt = few_shot_prompt
 
     prompt += '\nQuestion: ' + question
     prompt += '\nBrainstormed Answers: '
