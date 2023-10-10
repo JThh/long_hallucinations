@@ -5,7 +5,6 @@ import numpy as np
 import openai
 import torch
 import torch.nn.functional as F
-from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
 
 random.seed(10)
@@ -13,15 +12,8 @@ random.seed(10)
 # Set up OpenAI API credentials
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
-# meteor = load('meteor')
-tokenizer = AutoTokenizer.from_pretrained("microsoft/deberta-v2-xlarge-mnli")
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-# DEVICE = 'cpu'
-model = AutoModelForSequenceClassification.from_pretrained(
-    "microsoft/deberta-v2-xlarge-mnli").to(DEVICE)
 
-
-def get_semantic_ids(strings_list):
+def get_semantic_ids(strings_list, model, tokenizer):
     """Group list of predictions into semantic meaning."""
 
     def check_implication(text1, text2):
