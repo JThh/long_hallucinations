@@ -59,6 +59,8 @@ def get_parser(stages=['generate', 'compute']):
             help='Trigger compute_uncertainty_measures.py')
 
     if 'compute' in stages:
+        parser.add_argument('--condition_on_question',
+                            default=True, action=argparse.BooleanOptionalAction)
         parser.add_argument('--eval_wandb_runid', type=str,
                             help='wandb run id of the dataset to evaluate on')
         parser.add_argument('--train_wandb_runid', type=str, default=None,

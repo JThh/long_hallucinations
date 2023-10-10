@@ -132,6 +132,9 @@ def main(args):
             for i in log_liks:
                 assert i
 
+            if args.condition_on_question:
+                responses = [f'{question} {r}' for r in responses]
+
             # Compute semantic ids.
             semantic_ids = get_semantic_ids(responses, model=model, tokenizer=tokenizer)
 
