@@ -126,11 +126,11 @@ class HuggingfaceModel(BaseModel):
                 with accelerate.init_empty_weights():
                     self.model = AutoModelForCausalLM.from_config(config)
                 self.model.tie_weights()
-                if model_name == 'LLama-2-70b-chat':
-                    logging.warning('Raising max mem for llama-2-chat?')
+                if 'chat' in model_name:
                     max_mem = 17.5 * 4686198491
                 else:
-                    max_mem = 15 * 4686198491  # 4G * 15
+                    max_mem = 15 * 4686198491
+
                 device_map = accelerate.infer_auto_device_map(
                     self.model.model,
                     max_memory={0: max_mem, 1: max_mem},
