@@ -28,6 +28,9 @@ def get_parser(stages=['generate', 'compute']):
             "--num_few_shot", type=int, default=5,
             help="Number of few shot examples to use")
         parser.add_argument(
+            "--p_true_num_fewshot", type=int, default=20,
+            help="Number of few shot examples to use")
+        parser.add_argument(
             "--num_generations", type=int, default=5,
             help="Number of generations to use")
         parser.add_argument(

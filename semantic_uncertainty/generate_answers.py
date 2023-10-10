@@ -99,7 +99,7 @@ def main(args):
     if args.compute_p_true:
         logging.info(80*'#')
         logging.info('Constructing few-shot prompt for p_true.')
-        p_true_indices = random.sample(answerable_indices, args.num_few_shot)
+        p_true_indices = random.sample(answerable_indices, args.p_true_num_fewshot)
         remaining_answerable = list(set(remaining_answerable) - set(p_true_indices))
 
         p_true_few_shot_prompt = p_true_utils.construct_few_shot_prompt(
