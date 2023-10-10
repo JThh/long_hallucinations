@@ -61,8 +61,11 @@ def main(args):
             return Restored
     else:
         logging.info('Reuse active wandb id.')
+
         def restore(filename):
-            pass
+            class Restored:
+                name = f'{wandb.run.dir}/{filename}'
+            return Restored
 
     if args.train_wandb_runid != args.eval_wandb_runid:
         logging.info(
@@ -98,7 +101,6 @@ def main(args):
     with open(validation_generations_pickle.name, 'rb') as infile:
         validation_generations = pickle.load(infile)
 
-
     entropies, accuracies = defaultdict(list), defaultdict(list)
     validation_embeddings, validation_is_true, validation_answerable = [], [], []
     count = 0  # pylint: disable=invalid-name
@@ -106,10 +108,8 @@ def main(args):
     if len(validation_generations) == 400:
         raise ValueError("Very likely this is a bug where validation data contains train data.")
 
-
     def is_answerable(generation):
         return len(generation['reference']['answers']['text']) > 0
-
 
     # Loop over datapoints and compute validation embeddings, accuracies and entropies.
     for tid in validation_generations:
@@ -210,7 +210,6 @@ def main(args):
     result_dict['validation_unanswerable'] = validation_unanswerable
     logging.info('Unanswerable prop on validation: %f', np.mean(validation_unanswerable))
 
-
     if args.compute_predictive_entropy:
         result_dict['uncertainty_measures'].update(entropies)
         accuracies_mean = {k: np.mean(v) for k, v in accuracies.items()}
@@ -252,7 +251,11 @@ def main(args):
     wandb.save(f'{wandb.run.dir}/uncertainty_measures.pkl')
 
     if args.analyze_run:
+        logging.info(50 * '#X')
+        logging.info('STARTING `analyze_run`!')
         analyze_run(wandb.run.id)
+        logging.info(50 * '#X')
+        logging.info('FINISHED `analyze_run`!')
 
 
 if __name__ == '__main__':

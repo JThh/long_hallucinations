@@ -11,6 +11,7 @@ random.seed(10)
 
 # Set up OpenAI API credentials
 openai.api_key = os.getenv("OPENAI_API_KEY")
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 
 def get_semantic_ids(strings_list, model, tokenizer):
