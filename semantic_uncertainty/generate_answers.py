@@ -134,6 +134,10 @@ def main(args):
 
         it = 0
         for index in tqdm(indices):
+            if (it + 1 % 10) == 0:
+                gc.collect()
+                torch.cuda.empty_cache()
+
             it += 1
 
             # Grab example at index.
