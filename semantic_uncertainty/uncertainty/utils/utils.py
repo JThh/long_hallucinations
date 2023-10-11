@@ -59,8 +59,6 @@ def get_parser(stages=['generate', 'compute']):
             help='Trigger compute_uncertainty_measures.py')
 
     if 'compute' in stages:
-        parser.add_argument('--condition_on_question',
-                            default=True, action=argparse.BooleanOptionalAction)
         parser.add_argument('--eval_wandb_runid', type=str,
                             help='wandb run id of the dataset to evaluate on')
         parser.add_argument('--train_wandb_runid', type=str, default=None,
@@ -78,6 +76,10 @@ def get_parser(stages=['generate', 'compute']):
                             action=argparse.BooleanOptionalAction)
         parser.add_argument('--restore_entity_eval', type=str, default='goatml')
         parser.add_argument('--restore_entity_train', type=str, default='goatml')
+        parser.add_argument('--condition_on_question',
+                            default=True, action=argparse.BooleanOptionalAction)
+        parser.add_argument('--strict_entailment',
+                            default=True, action=argparse.BooleanOptionalAction)
 
     return parser
 

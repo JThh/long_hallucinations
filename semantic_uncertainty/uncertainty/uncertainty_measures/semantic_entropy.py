@@ -14,7 +14,7 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 
-def get_semantic_ids(strings_list, model, tokenizer):
+def get_semantic_ids(strings_list, model, tokenizer, strict_entailment=False):
     """Group list of predictions into semantic meaning."""
 
     def check_implication(text1, text2):
@@ -30,10 +30,14 @@ def get_semantic_ids(strings_list, model, tokenizer):
         implication_1 = check_implication(text1, text2)
         implication_2 = check_implication(text2, text1)  # pylint: disable=arguments-out-of-order
         assert (implication_1 in [0, 1, 2]) and (implication_2 in [0, 1, 2])
-        implications = [implication_1, implication_2]
 
-        # Check if none of the implications are 0 (contradiction) and not both of them are neutral.
-        semantically_equivalent = (0 not in implications) and ([1, 1] != implications)
+        if strict_entailment:
+            semantically_equivalent = (implication_1 == 2) and (implication_2 == 2)
+
+        else:
+            implications = [implication_1, implication_2]
+            # Check if none of the implications are 0 (contradiction) and not both of them are neutral.
+            semantically_equivalent = (0 not in implications) and ([1, 1] != implications)
 
         return semantically_equivalent
 

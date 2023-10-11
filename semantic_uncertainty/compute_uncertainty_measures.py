@@ -96,6 +96,10 @@ def main(args):
     },
         allow_val_change=True
     )
+    result_dict_pickle = restore('uncertainty_measures.pkl')
+    with open(result_dict_pickle.name, "rb") as infile:
+        result_dict = pickle.load(infile)
+    result_dict['semantic_ids'] = []
 
     validation_generations_pickle = restore('validation_generations.pkl')
     with open(validation_generations_pickle.name, 'rb') as infile:
@@ -136,8 +140,10 @@ def main(args):
                 responses = [f'{question} {r}' for r in responses]
 
             # Compute semantic ids.
-            semantic_ids = get_semantic_ids(responses, model=model, tokenizer=tokenizer)
-
+            semantic_ids = get_semantic_ids(
+                responses, model=model, tokenizer=tokenizer,
+                strict_entailment=args.strict_entailment)
+            result_dict['semantic_ids'].append(semantic_ids)
             # Compute entropy from frequencies of cluster assignments.
             entropies['cluster_assignment_entropy'].append(cluster_assignment_entropy(semantic_ids))
 
@@ -202,9 +208,6 @@ def main(args):
             logging.info('Breaking out of main loop.')
             break
 
-    result_dict_pickle = restore('uncertainty_measures.pkl')
-    with open(result_dict_pickle.name, "rb") as infile:
-        result_dict = pickle.load(infile)
     logging.info('Accuracy on original task: %f', np.mean(validation_is_true))
     validation_is_false = [1.0 - is_t for is_t in validation_is_true]
     result_dict['validation_is_false'] = validation_is_false
