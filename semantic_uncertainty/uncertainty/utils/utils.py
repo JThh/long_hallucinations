@@ -82,6 +82,8 @@ def get_parser(stages=['generate', 'compute']):
                             default=True, action=argparse.BooleanOptionalAction)
         parser.add_argument('--strict_entailment',
                             default=False, action=argparse.BooleanOptionalAction)
+        parser.add_argument('--use_all_generations', default=True, action=argparse.BooleanOptionalAction)
+        parser.add_argument('--use_num_generations', type=int, default=-1)
 
     return parser
 

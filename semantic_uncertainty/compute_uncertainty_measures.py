@@ -123,7 +123,10 @@ def main(args):
         full_responses = validation_generations[tid]["responses"]
         most_likely_answer = validation_generations[tid]['most_likely_answer']
 
-        responses = [full_response[0] for full_response in full_responses]
+        if not args.use_all_generations:
+            if args.use_num_generations == -1:
+                raise ValueError
+            responses = [fr[0] for fr in full_responses[:args.use_num_generations]]
 
         validation_answerable.append(is_answerable(validation_generations[tid]))
 

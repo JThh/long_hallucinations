@@ -18,8 +18,9 @@ def context_entails_response(context, responses, model, tokenizer):
     votes = []
     for response in responses:
         votes.append(check_implication(context, response, model, tokenizer))
-    # The higher the number, the more often we have entailment.
-    return np.mean(votes)
+    # The higher the votes, the more often we have entailment.
+    # So for larger votes our confidence should be zero!
+    return 2 - np.mean(votes)
 
 
 def check_implication(text1, text2, model, tokenizer):
