@@ -14,21 +14,33 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 
+def context_entails_response(context, responses, model, tokenizer):
+    votes = []
+    for response in responses:
+        votes.append(check_implication(context, response, model, tokenizer))
+    # The higher the number, the more often we have entailment.
+    return np.mean(votes)
+
+
+def check_implication(text1, text2, model, tokenizer):
+    inputs = tokenizer(text1, text2, return_tensors="pt").to(DEVICE)
+    # The model checks if text1 -> text2, i.e. if text2 follows from text1.
+    # check_implication('The weather is good', 'The weather is good and I like you') --> 1
+    # check_implication('The weather is good and I like you', 'The weather is good') --> 2
+    outputs = model(**inputs)
+    logits = outputs.logits
+    largest_index = torch.argmax(F.softmax(logits, dim=1))  # pylint: disable=no-member
+    # Deberta-mnli returns `neutral` and `entailment` classes at indices 1 and 2.
+    return largest_index.cpu().item()
+
+
 def get_semantic_ids(strings_list, model, tokenizer, strict_entailment=False):
     """Group list of predictions into semantic meaning."""
 
-    def check_implication(text1, text2):
-        inputs = tokenizer(text1, text2, return_tensors="pt").to(DEVICE)
-        outputs = model(**inputs)
-        logits = outputs.logits
-        largest_index = torch.argmax(F.softmax(logits, dim=1))  # pylint: disable=no-member
-        # Deberta-mnli returns `neutral` and `entailment` classes at indices 1 and 2.
-        return largest_index.cpu().item()
-
     def are_equivalent(text1, text2):
 
-        implication_1 = check_implication(text1, text2)
-        implication_2 = check_implication(text2, text1)  # pylint: disable=arguments-out-of-order
+        implication_1 = check_implication(text1, text2, model, tokenizer)
+        implication_2 = check_implication(text2, text1, model, tokenizer)  # pylint: disable=arguments-out-of-order
         assert (implication_1 in [0, 1, 2]) and (implication_2 in [0, 1, 2])
 
         if strict_entailment:

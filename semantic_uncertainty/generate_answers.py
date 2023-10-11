@@ -38,15 +38,7 @@ def main(args):
         entity=args.entity,
         project="semantic_uncertainty" if not args.debug else "semantic_uncertainty_debug",
         dir=f"/scratch-ssd/{user}/uncertainty",
-        config={
-            "dataset": args.dataset,
-            "model": args.model_name,
-            "num_samples": args.num_samples,
-            "num_few_shot": args.num_few_shot,
-            "num_generations": args.num_generations,
-            "temperature": args.temperature,
-            "compute_p_true": args.compute_p_true
-        },
+        config=args,
         notes=f'slurm_id: {slurm_jobid}, experiment_lot: {args.experiment_lot}',
     )
     logging.info('Finished wandb init.')

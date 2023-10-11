@@ -70,6 +70,8 @@ def get_parser(stages=['generate', 'compute']):
                             action=argparse.BooleanOptionalAction)
         parser.add_argument('--compute_p_ik_answerable', default=False,
                             action=argparse.BooleanOptionalAction)
+        parser.add_argument('--compute_context_entails_response', default=False,
+                            action=argparse.BooleanOptionalAction)
         parser.add_argument('--analyze_run', default=True,
                             action=argparse.BooleanOptionalAction)
         parser.add_argument('--assign_new_wandb_id', default=True,
@@ -79,7 +81,7 @@ def get_parser(stages=['generate', 'compute']):
         parser.add_argument('--condition_on_question',
                             default=True, action=argparse.BooleanOptionalAction)
         parser.add_argument('--strict_entailment',
-                            default=True, action=argparse.BooleanOptionalAction)
+                            default=False, action=argparse.BooleanOptionalAction)
 
     return parser
 

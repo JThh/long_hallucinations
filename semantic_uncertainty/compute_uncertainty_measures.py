@@ -18,6 +18,7 @@ from uncertainty.uncertainty_measures.semantic_entropy import logsumexp_by_id
 from uncertainty.uncertainty_measures.semantic_entropy import predictive_entropy
 from uncertainty.uncertainty_measures.semantic_entropy import predictive_entropy_rao
 from uncertainty.uncertainty_measures.semantic_entropy import cluster_assignment_entropy
+from uncertainty.uncertainty_measures.semantic_entropy import context_entails_response
 from uncertainty.utils import utils
 
 
@@ -46,6 +47,7 @@ def main(args):
             project=project,
             dir=wandb_dir,
             notes=f'slurm_id: {slurm_jobid}',
+            config=args
         )
         api = wandb.Api()
         old_run = api.run(f'{args.restore_entity_eval}/{project}/{args.eval_wandb_runid}')
@@ -90,8 +92,6 @@ def main(args):
             train_generations = pickle.load(infile)
 
     wandb.config.update({
-        "compute_predictive_entropy": args.compute_predictive_entropy,
-        "compute_p_ik": args.compute_p_ik,
         "is_ood_eval": is_ood_eval
     },
         allow_val_change=True
@@ -119,6 +119,7 @@ def main(args):
     for tid in validation_generations:
 
         question = validation_generations[tid]['question']
+        context = validation_generations[tid]['context']
         full_responses = validation_generations[tid]["responses"]
         most_likely_answer = validation_generations[tid]['most_likely_answer']
 
@@ -136,6 +137,11 @@ def main(args):
             for i in log_liks:
                 assert i
 
+            if args.compute_context_entails_response:
+                # Compute context entails answer baseline.
+                entropies['context_entails_response'].append(context_entails_response(
+                    context, responses, model, tokenizer))
+
             if args.condition_on_question:
                 responses = [f'{question} {r}' for r in responses]
 
@@ -143,6 +149,7 @@ def main(args):
             semantic_ids = get_semantic_ids(
                 responses, model=model, tokenizer=tokenizer,
                 strict_entailment=args.strict_entailment)
+
             result_dict['semantic_ids'].append(semantic_ids)
             # Compute entropy from frequencies of cluster assignments.
             entropies['cluster_assignment_entropy'].append(cluster_assignment_entropy(semantic_ids))
