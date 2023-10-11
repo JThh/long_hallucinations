@@ -97,7 +97,7 @@ def main(args):
         p_true_few_shot_prompt = p_true_utils.construct_few_shot_prompt(
             model=model, dataset=train_dataset, indices=p_true_indices,
             prompt=prompt, brief=BRIEF, brief_always=args.brief_always,
-            make_prompt=make_prompt)
+            make_prompt=make_prompt, num_generations=args.num_generations)
         logging.info('Finished constructing few-shot prompt for p_true.')
         logging.info(80*'#')
         logging.info('p_true_few_shot_prompt: %s', p_true_few_shot_prompt)

@@ -7,7 +7,7 @@ from evaluate import load
 squad_metric = load("squad_v2")
 
 
-def construct_few_shot_prompt(model, dataset, indices, prompt, brief, brief_always, make_prompt):
+def construct_few_shot_prompt(model, dataset, indices, prompt, brief, brief_always, make_prompt, num_generations):
     """Construct few shot prompt for p_true uncertainty metric."""
 
     # Call model n_shots many times
@@ -28,7 +28,7 @@ def construct_few_shot_prompt(model, dataset, indices, prompt, brief, brief_alwa
         logging.info('P_TRUE >> Current Question: '.ljust(25) +  current_question)
 
         responses = []
-        for j in range(5):
+        for j in range(num_generations + 1):
 
             if j == 0:
                 temperature = 0.1
