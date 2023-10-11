@@ -178,6 +178,7 @@ class HuggingfaceModel(BaseModel):
 
         # Implement prediction.
         inputs = self.tokenizer(input_data, return_tensors="pt").to("cuda")
+
         if 'llama' in self.model_name.lower() or 'falcon' in self.model_name:
             if 'token_type_ids' in inputs:  # seems to have been updated
                 del inputs['token_type_ids']

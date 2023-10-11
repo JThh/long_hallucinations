@@ -51,7 +51,7 @@ def main(args):
         )
         api = wandb.Api()
         old_run = api.run(f'{args.restore_entity_eval}/{project}/{args.eval_wandb_runid}')
-        wandb.config.update(old_run.config)
+        wandb.config.update(old_run.config, allow_val_change=True)
 
         def restore(filename):
             old_run.file(filename).download(
