@@ -127,6 +127,8 @@ def main(args):
             if args.use_num_generations == -1:
                 raise ValueError
             responses = [fr[0] for fr in full_responses[:args.use_num_generations]]
+        else:
+            responses = [fr[0] for fr in full_responses]
 
         validation_answerable.append(is_answerable(validation_generations[tid]))
 
@@ -136,7 +138,11 @@ def main(args):
 
         if args.compute_predictive_entropy:
             # Token log likelihoods. Shape = (n_sample, n_tokens)
-            log_liks = [r[1] for r in full_responses]
+            if not args.use_all_generations:
+                log_liks = [r[1] for r in full_responses[:args.use_num_generations]]
+            else:
+                log_liks = [r[1] for r in full_responses]
+
             for i in log_liks:
                 assert i
 

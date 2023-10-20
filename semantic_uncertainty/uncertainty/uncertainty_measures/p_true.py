@@ -7,7 +7,8 @@ from evaluate import load
 squad_metric = load("squad_v2")
 
 
-def construct_few_shot_prompt(model, dataset, indices, prompt, brief, brief_always, make_prompt, num_generations):
+def construct_few_shot_prompt(
+        *, model, dataset, indices, prompt, brief, brief_always, make_prompt, num_generations, metric):
     """Construct few shot prompt for p_true uncertainty metric."""
 
     # Call model n_shots many times
@@ -25,7 +26,7 @@ def construct_few_shot_prompt(model, dataset, indices, prompt, brief, brief_alwa
         few_shot_prompt += '\nBrainstormed Answers: '
         current_question = make_prompt(context, question, None, brief, brief_always)
         local_prompt = prompt + current_question
-        logging.info('P_TRUE >> Current Question: '.ljust(25) +  current_question)
+        logging.info('P_TRUE >> Current Question: '.ljust(25) + current_question)
 
         responses = []
         for j in range(num_generations + 1):
@@ -43,14 +44,9 @@ def construct_few_shot_prompt(model, dataset, indices, prompt, brief, brief_alwa
             if j == 0:
                 # Save most likely response and compute correctness metric for it.
                 most_likely_response = response
-                prediction = {'prediction_text': response, 'no_answer_probability': 0.0, 'id': example['id']}
-                answer_starts = [answer_start for answer_start in example['answers']['answer_start']]
+                is_correct = metric(response, example, model)
                 answers = [answer for answer in example['answers']['text']]
-                reference = {'answers': {'answer_start': answer_starts, 'text': answers}, 'id': example['id']}
-                results = squad_metric.compute(predictions=[prediction], references=[reference])
-                is_correct = results['f1'] > 50.0
-                logging.info('P_TRUE >> LOW-T >> answer: '.ljust(35) + str(answers))
-                logging.info('P_TRUE >> LOW-T >> results: '.ljust(35) + str(results))
+                logging.info('P_TRUE >> LOW-T >> true answer: '.ljust(35) + str(answers))
                 logging.info('P_TRUE >> LOW-T >> acc: '.ljust(35) + str(is_correct))
 
         few_shot_prompt += 'Possible answer: ' + most_likely_response + '\n'

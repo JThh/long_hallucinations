@@ -42,7 +42,7 @@ def init_wandb(wandb_runid, assign_new_wandb_id):
         api = wandb.Api()
         wandb.init(**kwargs)
 
-        old_run = api.run(f'goatml/uncertainty/{wandb_runid}')
+        old_run = api.run(f'goatml/semantic_uncertainty/{wandb_runid}')
         old_run.file(UNC_MEAS).download(
             replace=True, exist_ok=False, root=wandb.run.dir)
 

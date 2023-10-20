@@ -18,9 +18,6 @@ from huggingface_hub import snapshot_download
 from uncertainty.models.base_model import BaseModel
 
 
-MAX_NEW_TOKENS = 25
-
-
 class StoppingCriteriaSub(StoppingCriteria):
     """Stop generations when they match a particular text or token."""
     def __init__(self, stops, tokenizer, match_on='text', initial_length=None):
@@ -87,7 +84,10 @@ def remove_split_layer(device_map_in):
 class HuggingfaceModel(BaseModel):
     """HuggingfaceModel."""
 
-    def __init__(self, model_name, stop_sequences=None):
+    def __init__(self, model_name, stop_sequences=None, max_new_tokens=None):
+        if max_new_tokens is None:
+            raise
+        self.max_new_tokens = max_new_tokens
 
         if 'llama' in model_name.lower():
 
@@ -198,7 +198,7 @@ class HuggingfaceModel(BaseModel):
         with torch.no_grad():
             outputs = self.model.generate(
                 **inputs,
-                max_new_tokens=MAX_NEW_TOKENS,
+                max_new_tokens=self.max_new_tokens,
                 return_dict_in_generate=True,
                 output_scores=True,
                 output_hidden_states=True,
@@ -298,7 +298,7 @@ class HuggingfaceModel(BaseModel):
         # llama-7b
         # (3, 33, torch.Size([1, 60, 4544]), torch.Size([1, 61, 4544]), torch.Size([1, 61, 4544]), torch.Size([1, 61, 4544]))
 
-        if len(log_likelihoods) == MAX_NEW_TOKENS:
+        if len(log_likelihoods) == self.max_new_tokens:
             logging.warning('Generation interrupted by max_token limit.')
 
         if len(log_likelihoods) == 0:

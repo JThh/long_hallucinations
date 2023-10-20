@@ -2,6 +2,10 @@
 import logging
 import argparse
 
+BRIEF_PROMPTS = {
+    'default:': "Answer the following question as briefly as possible.\n",
+    'chat': 'Answer the following question in a single brief sentence.\n'}
+
 
 def get_parser(stages=['generate', 'compute']):
     parser = argparse.ArgumentParser()
@@ -18,9 +22,17 @@ def get_parser(stages=['generate', 'compute']):
             "--model_name", type=str, default="oai.code-davinci-002", help="Model name",
         )
         parser.add_argument(
+            "--model_max_new_tokens", type=int, default=25,
+            help="Max number of tokens generated.",
+        )
+        parser.add_argument(
             "--dataset", type=str, default="record",
             choices=['trivia_qa', 'squad', 'med_qa', 'bioasq', 'record'],
             help="Dataset to use")
+        parser.add_argument(
+            "--metric", type=str, default="squad",
+            choices=['squad', 'llm'],
+            help="Metric to assign accuracy to generations.")
         parser.add_argument(
             "--num_samples", type=int, default=200,
             help="Number of samples to use")
@@ -31,7 +43,7 @@ def get_parser(stages=['generate', 'compute']):
             "--p_true_num_fewshot", type=int, default=20,
             help="Number of few shot examples to use")
         parser.add_argument(
-            "--num_generations", type=int, default=5,
+            "--num_generations", type=int, default=10,
             help="Number of generations to use")
         parser.add_argument(
             "--temperature", type=float, default=1.0,
@@ -41,6 +53,10 @@ def get_parser(stages=['generate', 'compute']):
             help="Include MC options question?")
         parser.add_argument(
             "--get_training_set_generations", default=True,
+            action=argparse.BooleanOptionalAction,
+            help="Get generations for training set?")
+        parser.add_argument(
+            "--use_context", default=True,
             action=argparse.BooleanOptionalAction,
             help="Get generations for training set?")
         parser.add_argument(
@@ -54,9 +70,19 @@ def get_parser(stages=['generate', 'compute']):
         parser.add_argument(
             "--brief_always", default=False, action=argparse.BooleanOptionalAction)
         parser.add_argument(
+            "--enable_brief", default=True, action=argparse.BooleanOptionalAction)
+        parser.add_argument(
+            "--brief_prompt", default='default', type=str)
+        parser.add_argument(
+            "--prompt_type", default='default', type=str)
+        parser.add_argument(
             "--compute_uncertainties", default=True,
             action=argparse.BooleanOptionalAction,
             help='Trigger compute_uncertainty_measures.py')
+        parser.add_argument(
+            "--answerable_only", default=False,
+            action=argparse.BooleanOptionalAction,
+            help='Exclude unanswerable questions.')
 
     if 'compute' in stages:
         parser.add_argument('--eval_wandb_runid', type=str,
@@ -81,7 +107,7 @@ def get_parser(stages=['generate', 'compute']):
         parser.add_argument('--condition_on_question',
                             default=True, action=argparse.BooleanOptionalAction)
         parser.add_argument('--strict_entailment',
-                            default=False, action=argparse.BooleanOptionalAction)
+                            default=True, action=argparse.BooleanOptionalAction)
         parser.add_argument('--use_all_generations', default=True, action=argparse.BooleanOptionalAction)
         parser.add_argument('--use_num_generations', type=int, default=-1)
 
@@ -146,3 +172,39 @@ def check_for_clarification_request(answer):
         if indicator in answer:
             is_clarification_request = 1.0
     return is_clarification_request
+
+
+def llm_metric(predicted_answer, example, model):
+    correct_answers = [answer for answer in example['answers']['text']]
+
+    prompt = f'We are assessing the quality of answers to the following question: {example["question"]}\n'
+    if len(correct_answers) == 1:
+        prompt += f"The correct answer is: {correct_answers[0]}.\n"
+    else:
+        prompt += f"The following are correct answers to this question: {correct_answers}.\n"
+
+    prompt += f"The proposed answer is: {predicted_answer}\n"
+
+    if len(correct_answers) == 1:
+        prompt += "Does the proposed answer mean the same as the correct answer?"
+    else:
+        prompt += "Does the proposed answer mean the same as any of the correct answers?"
+
+    prompt += " Respond only with yes or no.\nResponse:"
+
+    predicted_answer, _, _ = model.predict(prompt, 0.1)
+
+    if 'yes' in predicted_answer.lower():
+        return 1.0
+    elif 'no' in predicted_answer.lower():
+        return 0.0
+    else:
+        logging.warning('Answer neither no nor yes. Defaulting to no!')
+        return 0.0
+
+
+def get_reference(example):
+    answer_starts = [answer_start for answer_start in example['answers']['answer_start']]
+    answers = [answer for answer in example['answers']['text']]
+    reference = {'answers': {'answer_start': answer_starts, 'text': answers}, 'id': example['id']}
+    return reference
