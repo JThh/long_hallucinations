@@ -160,6 +160,7 @@ def main(args):
                 strict_entailment=args.strict_entailment)
 
             result_dict['semantic_ids'].append(semantic_ids)
+
             # Compute entropy from frequencies of cluster assignments.
             entropies['cluster_assignment_entropy'].append(cluster_assignment_entropy(semantic_ids))
 

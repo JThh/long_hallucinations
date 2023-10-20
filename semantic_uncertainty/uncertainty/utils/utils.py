@@ -4,7 +4,7 @@ import argparse
 
 BRIEF_PROMPTS = {
     'default:': "Answer the following question as briefly as possible.\n",
-    'chat': 'Answer the following question in a single brief sentence.\n'}
+    'chat': 'Answer the following question in a single brief but complete sentence.\n'}
 
 
 def get_parser(stages=['generate', 'compute']):
@@ -179,26 +179,33 @@ def llm_metric(predicted_answer, example, model):
 
     prompt = f'We are assessing the quality of answers to the following question: {example["question"]}\n'
     if len(correct_answers) == 1:
-        prompt += f"The correct answer is: {correct_answers[0]}.\n"
+        prompt += f"The expected answer is: {correct_answers[0]}.\n"
     else:
-        prompt += f"The following are correct answers to this question: {correct_answers}.\n"
+        prompt += f"The following are expected answers to this question: {correct_answers}.\n"
 
     prompt += f"The proposed answer is: {predicted_answer}\n"
 
     if len(correct_answers) == 1:
-        prompt += "Does the proposed answer mean the same as the correct answer?"
+        prompt += "Within the context of the question, does the proposed answer mean the same as the expected answer?"
     else:
-        prompt += "Does the proposed answer mean the same as any of the correct answers?"
+        prompt += "Within the context of the question, does the proposed answer mean the same as any of the expected answers?"
 
     prompt += " Respond only with yes or no.\nResponse:"
 
-    predicted_answer, _, _ = model.predict(prompt, 0.1)
+    predicted_answer, _, _ = model.predict(prompt, 0.01)
 
     if 'yes' in predicted_answer.lower():
         return 1.0
     elif 'no' in predicted_answer.lower():
         return 0.0
     else:
+        logging.warning('Redo llm check.')
+        predicted_answer, _, _ = model.predict(prompt, 1)
+        if 'yes' in predicted_answer.lower():
+            return 1.0
+        elif 'no' in predicted_answer.lower():
+            return 0.0
+
         logging.warning('Answer neither no nor yes. Defaulting to no!')
         return 0.0
 

@@ -210,7 +210,6 @@ def main(args):
                 if correct_answer:
                     acc = metric(predicted_answer, example, model)
                 else:
-                    results = None
                     acc = 0.0  # pylint: disable=invalid-name
 
                 if i == 0:
