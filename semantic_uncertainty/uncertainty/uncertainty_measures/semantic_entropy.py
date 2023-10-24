@@ -59,7 +59,7 @@ class EntailmentGPT4:
 
         logging.info('GPT-4 prediction: %s', response)
 
-        binary_response = response.lower()[:10]
+        binary_response = response.lower()[:30]
         if 'entailment' in binary_response:
             return 2
         elif 'neutral' in binary_response:
