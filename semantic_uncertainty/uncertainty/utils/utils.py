@@ -3,7 +3,7 @@ import logging
 import argparse
 
 BRIEF_PROMPTS = {
-    'default:': "Answer the following question as briefly as possible.\n",
+    'default': "Answer the following question as briefly as possible.\n",
     'chat': 'Answer the following question in a single brief but complete sentence.\n'}
 
 
@@ -110,6 +110,8 @@ def get_parser(stages=['generate', 'compute']):
                             default=True, action=argparse.BooleanOptionalAction)
         parser.add_argument('--use_all_generations', default=True, action=argparse.BooleanOptionalAction)
         parser.add_argument('--use_num_generations', type=int, default=-1)
+        parser.add_argument(
+            "--entailment_model", default='deberta', type=str)
 
     return parser
 

@@ -126,10 +126,11 @@ class HuggingfaceModel(BaseModel):
                 with accelerate.init_empty_weights():
                     self.model = AutoModelForCausalLM.from_config(config)
                 self.model.tie_weights()
-                if 'chat' in model_name:
-                    max_mem = 17.5 * 4686198491
-                else:
-                    max_mem = 15 * 4686198491
+                # if 'chat' in model_name:
+                #     max_mem = 17.5 * 4686198491
+                # else:
+                #     max_mem = 15 * 4686198491
+                max_mem = 15 * 4686198491
 
                 device_map = accelerate.infer_auto_device_map(
                     self.model.model,

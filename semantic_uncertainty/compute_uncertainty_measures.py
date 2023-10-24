@@ -8,7 +8,6 @@ import numpy as np
 import wandb
 
 import torch
-from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
 from analyze_results import analyze_run
 
@@ -19,6 +18,8 @@ from uncertainty.uncertainty_measures.semantic_entropy import predictive_entropy
 from uncertainty.uncertainty_measures.semantic_entropy import predictive_entropy_rao
 from uncertainty.uncertainty_measures.semantic_entropy import cluster_assignment_entropy
 from uncertainty.uncertainty_measures.semantic_entropy import context_entails_response
+from uncertainty.uncertainty_measures.semantic_entropy import EntailmentDeberta
+from uncertainty.uncertainty_measures.semantic_entropy import EntailmentGPT4
 from uncertainty.utils import utils
 
 
@@ -27,10 +28,12 @@ utils.setup_logger()
 
 def main(args):
 
-    tokenizer = AutoTokenizer.from_pretrained("microsoft/deberta-v2-xlarge-mnli")
-    DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-    model = AutoModelForSequenceClassification.from_pretrained(
-        "microsoft/deberta-v2-xlarge-mnli").to(DEVICE)
+    if args.entailment_model == 'deberta':
+        model = EntailmentDeberta()
+    elif args.entailment_model == 'gpt-4':
+        model = EntailmentGPT4()
+    else:
+        raise ValueError
 
     if args.train_wandb_runid is None:
         args.train_wandb_runid = args.eval_wandb_runid
@@ -117,11 +120,11 @@ def main(args):
 
     # Loop over datapoints and compute validation embeddings, accuracies and entropies.
     for tid in validation_generations:
-
-        question = validation_generations[tid]['question']
-        context = validation_generations[tid]['context']
-        full_responses = validation_generations[tid]["responses"]
-        most_likely_answer = validation_generations[tid]['most_likely_answer']
+        example = validation_generations[tid]
+        question = example['question']
+        context = example['context']
+        full_responses = example["responses"]
+        most_likely_answer = example['most_likely_answer']
 
         if not args.use_all_generations:
             if args.use_num_generations == -1:
@@ -130,7 +133,7 @@ def main(args):
         else:
             responses = [fr[0] for fr in full_responses]
 
-        validation_answerable.append(is_answerable(validation_generations[tid]))
+        validation_answerable.append(is_answerable(example))
 
         validation_embeddings.append(most_likely_answer['embedding'])
         validation_is_true.append(most_likely_answer['accuracy'])
@@ -149,15 +152,16 @@ def main(args):
             if args.compute_context_entails_response:
                 # Compute context entails answer baseline.
                 entropies['context_entails_response'].append(context_entails_response(
-                    context, responses, model, tokenizer))
+                    context, responses, model))
 
-            if args.condition_on_question:
+            if args.condition_on_question and args.entailment_model != 'gpt-4':
                 responses = [f'{question} {r}' for r in responses]
 
             # Compute semantic ids.
             semantic_ids = get_semantic_ids(
-                responses, model=model, tokenizer=tokenizer,
-                strict_entailment=args.strict_entailment)
+                responses, model=model, strict_entailment=args.strict_entailment,
+                example=example,
+                )
 
             result_dict['semantic_ids'].append(semantic_ids)
 
@@ -206,11 +210,11 @@ def main(args):
             logging.info(80*'#')
             logging.info('NEW ITEM at id=`%s`.', tid)
             logging.info('Context:')
-            logging.info(validation_generations[tid]['context'])
+            logging.info(example['context'])
             logging.info('Question:')
             logging.info(question)
             logging.info('True Answers:')
-            logging.info(validation_generations[tid]['reference'])
+            logging.info(example['reference'])
             logging.info('Low Temperature Generation:')
             logging.info(most_likely_answer['response'])
             logging.info('Low Temperature Generation Accuracy:')
