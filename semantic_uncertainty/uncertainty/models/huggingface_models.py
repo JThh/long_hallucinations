@@ -18,6 +18,9 @@ from huggingface_hub import snapshot_download
 from uncertainty.models.base_model import BaseModel
 
 
+STOP_SEQUENCES = ['\n\n', '\n', 'Question:', 'Context:']
+
+
 class StoppingCriteriaSub(StoppingCriteria):
     """Stop generations when they match a particular text or token."""
     def __init__(self, stops, tokenizer, match_on='text', initial_length=None):
@@ -89,14 +92,19 @@ class HuggingfaceModel(BaseModel):
             raise
         self.max_new_tokens = max_new_tokens
 
+        if stop_sequences == 'default':
+            stop_sequences = STOP_SEQUENCES
+
         if 'llama' in model_name.lower():
 
             if model_name.endswith('-8bit'):
                 kwargs = {'quantization_config': BitsAndBytesConfig(
                     load_in_8bit=True,)}
                 model_name = model_name[:-len('-8bit')]
+                eightbit = True
             else:
                 kwargs = {}
+                eightbit = False
 
             if 'Llama-2' in model_name:
                 base = 'meta-llama'
@@ -111,9 +119,10 @@ class HuggingfaceModel(BaseModel):
             llama65b = '65b' in model_name and base == 'huggyllama'
             llama2_70b = '70b' in model_name and base == 'meta-llama'
 
-            if '7b' in model_name or '13b' in model_name:
+            if ('7b' in model_name or '13b' in model_name) or eightbit:
                 self.model = AutoModelForCausalLM.from_pretrained(
-                    f"{base}/{model_name}", device_map="auto", **kwargs)
+                    f"{base}/{model_name}", device_map="auto",
+                    max_memory={0: '80GIB'}, **kwargs,)
 
             elif llama2_70b or llama65b:
                 path = snapshot_download(

@@ -30,6 +30,10 @@ def get_parser(stages=['generate', 'compute']):
             choices=['trivia_qa', 'squad', 'med_qa', 'bioasq', 'record'],
             help="Dataset to use")
         parser.add_argument(
+            "--ood_train_dataset", type=str, default=None,
+            choices=['trivia_qa', 'squad', 'med_qa', 'bioasq', 'record'],
+            help="Dataset to use to assemble few-shot prompt, p_true prompt, and train p_ik.")
+        parser.add_argument(
             "--metric", type=str, default="squad",
             choices=['squad', 'llm'],
             help="Metric to assign accuracy to generations.")
@@ -42,6 +46,10 @@ def get_parser(stages=['generate', 'compute']):
         parser.add_argument(
             "--p_true_num_fewshot", type=int, default=20,
             help="Number of few shot examples to use")
+        parser.add_argument(
+            "--p_true_hint", default=False,
+            action=argparse.BooleanOptionalAction,
+            help="Get generations for training set?")
         parser.add_argument(
             "--num_generations", type=int, default=10,
             help="Number of generations to use")

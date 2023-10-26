@@ -9,6 +9,8 @@ import torch
 import torch.nn.functional as F
 
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
+
+from uncertainty.models.huggingface_models import HuggingfaceModel
 from uncertainty.utils import openai as oai
 
 
@@ -37,8 +39,7 @@ class EntailmentDeberta:
         return largest_index.cpu().item()
 
 
-class EntailmentGPT4:
-
+class EntailmentLLM:
     def __init__(self):
         self.prediction_cache = {}
 
@@ -47,17 +48,17 @@ class EntailmentGPT4:
             raise ValueError
         prompt = self.equivalence_prompt(text1, text2, example['question'])
 
-        logging.info('GPT-4 input: %s', prompt)
+        logging.info('%s input: %s', self.name, prompt)
 
         hashed = oai.md5hash(prompt)
         if hashed in self.prediction_cache:
-            logging.info('Restoring hashed instead of predicting with GPT-4.')
+            logging.info('Restoring hashed instead of predicting with model.')
             response = self.prediction_cache[hashed]
         else:
-            response = oai.predict(prompt, temperature=0.02)
+            response = self.predict(prompt, temperature=0.02)
             self.prediction_cache[hashed] = response
 
-        logging.info('GPT-4 prediction: %s', response)
+        logging.info('%s prediction: %s', self.name, response)
 
         binary_response = response.lower()[:30]
         if 'entailment' in binary_response:
@@ -69,6 +70,14 @@ class EntailmentGPT4:
         else:
             logging.warning('MANUAL NEUTRAL!')
             return 1
+
+
+class EntailmentGPT4(EntailmentLLM):
+
+    def __init__(self):
+        super().__init__()
+        self.name = 'GPT-4'
+
 
     def equivalence_prompt(self, text1, text2, question):
 
@@ -83,6 +92,37 @@ class EntailmentGPT4:
         prompt += "Does Possible Answer 1 semantically entail Possible Answer 2? Respond with entailment, contradiction, or neutral."""
 
         return prompt
+
+    def predict(self, prompt, temperature):
+        return oai.predict(prompt, temperature)
+
+
+class EntailmentLlama(EntailmentLLM):
+
+    def __init__(self, name):
+        super().__init__()
+        self.name = name
+        self.model = HuggingfaceModel(
+            name, stop_sequences='default', max_new_tokens=30)
+
+    def equivalence_prompt(self, text1, text2, question):
+
+        prompt = f"""We are evaluating answers to the question \"{question}\"\n"""
+
+        # To precise.
+        prompt += "Here are two possible answers:\n"
+        # Ah! This is much closer to what we are doing!
+        # prompt = prompt + f"""Does at least one of the following two possible answers entail the other?
+        # Still to precise.
+        prompt += f"Possible Answer 1: {text1}\nPossible Answer 2: {text2}\n"
+        prompt += "Does Possible Answer 1 semantically entail Possible Answer 2? Respond only with entailment, contradiction, or neutral.\n"""
+        prompt += "Response:"""
+
+        return prompt
+
+    def predict(self, prompt, temperature):
+        predicted_answer, _, _ = self.model.predict(prompt, temperature)
+        return predicted_answer
 
 
 def context_entails_response(context, responses, model):

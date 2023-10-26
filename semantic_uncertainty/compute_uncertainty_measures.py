@@ -20,6 +20,7 @@ from uncertainty.uncertainty_measures.semantic_entropy import cluster_assignment
 from uncertainty.uncertainty_measures.semantic_entropy import context_entails_response
 from uncertainty.uncertainty_measures.semantic_entropy import EntailmentDeberta
 from uncertainty.uncertainty_measures.semantic_entropy import EntailmentGPT4
+from uncertainty.uncertainty_measures.semantic_entropy import EntailmentLlama
 from uncertainty.utils import utils
 
 
@@ -32,6 +33,8 @@ def main(args):
         model = EntailmentDeberta()
     elif args.entailment_model == 'gpt-4':
         model = EntailmentGPT4()
+    elif 'llama' in args.entailment_model.lower():
+        model = EntailmentLlama(args.entailment_model)
     else:
         raise ValueError
 
@@ -119,7 +122,7 @@ def main(args):
         return len(generation['reference']['answers']['text']) > 0
 
     # Loop over datapoints and compute validation embeddings, accuracies and entropies.
-    for tid in validation_generations:
+    for idx, tid in enumerate(validation_generations):
         example = validation_generations[tid]
         question = example['question']
         context = example['context']
@@ -154,7 +157,7 @@ def main(args):
                 entropies['context_entails_response'].append(context_entails_response(
                     context, responses, model))
 
-            if args.condition_on_question and args.entailment_model != 'gpt-4':
+            if args.condition_on_question and args.entailment_model == 'deberta':
                 responses = [f'{question} {r}' for r in responses]
 
             # Compute semantic ids.
@@ -208,7 +211,7 @@ def main(args):
             entropies_fmt = ', '.join([f'{i}:{j[-1]:.2f}' for i, j in entropies.items()])
             # pylint: enable=invalid-name
             logging.info(80*'#')
-            logging.info('NEW ITEM at id=`%s`.', tid)
+            logging.info('NEW ITEM %d at id=`%s`.', idx, tid)
             logging.info('Context:')
             logging.info(example['context'])
             logging.info('Question:')
