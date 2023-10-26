@@ -47,17 +47,20 @@ def main(args):
     project = "semantic_uncertainty" if not args.debug else "semantic_uncertainty_debug"
     if args.assign_new_wandb_id:
         logging.info('Assign new wandb_id.')
+        api = wandb.Api()
+        old_run = api.run(f'{args.restore_entity_eval}/{project.replace("_debug","")}/{args.eval_wandb_runid}')
         wandb.init(
             entity=args.entity,
             # set the wandb project where this run will be logged
             project=project,
             dir=wandb_dir,
             notes=f'slurm_id: {slurm_jobid}',
-            config=args
+            # For convenience, keep any 'generate_answers' configs from old run,
+            #  but overwrite the rest!
+            # NOTE: This means any special configs affecting this script must be
+            # called again when calling this script!
+            config={**old_run.config, **args.__dict__},
         )
-        api = wandb.Api()
-        old_run = api.run(f'{args.restore_entity_eval}/{project}/{args.eval_wandb_runid}')
-        wandb.config.update(old_run.config, allow_val_change=True)
 
         def restore(filename):
             old_run.file(filename).download(
