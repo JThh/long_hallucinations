@@ -11,6 +11,8 @@ import logging
 
 openai.api_key = os.environ["OPENAI_API_KEY"]
 
+from uncertainty.models.base_model import STOP_SEQUENCES
+
 
 class OpenAIModel(BaseModel):
     """Query OpenAI API for predictions."""
@@ -18,7 +20,11 @@ class OpenAIModel(BaseModel):
     def __init__(self, model_name='text-davinci-002', stop_sequences=None):
         self.model_name = model_name
 
+        if stop_sequences == 'default':
+            stop_sequences = STOP_SEQUENCES
+
         self.stop_sequences = stop_sequences
+
         # TODO: Figure out which OAI models need this.
         if model_name == 'text-davinci-002':
             self.use_oai_stop = False

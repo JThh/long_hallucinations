@@ -14,6 +14,7 @@ from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
 from uncertainty.models.huggingface_models import HuggingfaceModel
 from uncertainty.utils import openai as oai
+from uncertainty.utils import utils
 
 
 random.seed(10)
@@ -70,9 +71,7 @@ class EntailmentLLM(BaseEntailment):
 
     def save_prediction_cache(self):
         # write the dictionary to a pickle file
-        with open(f'{wandb.run.dir}/{self.entailment_file}', 'wb') as f:
-            pickle.dump(self.prediction_cache, f)
-        wandb.save(f'{wandb.run.dir}/{self.entailment_file}')
+        utils.save(self.prediction_cache, self.entailment_file)
 
     def check_implication(self, text1, text2, example=None):
         if example is None:

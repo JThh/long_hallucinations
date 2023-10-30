@@ -1,6 +1,12 @@
 """Utility functions."""
 import logging
 import argparse
+import pickle
+
+import wandb
+
+from uncertainty.models.huggingface_models import HuggingfaceModel
+from uncertainty.models.oai_models import OpenAIModel
 
 BRIEF_PROMPTS = {
     'default': "Answer the following question as briefly as possible.\n",
@@ -123,6 +129,8 @@ def get_parser(stages=['generate', 'compute']):
         parser.add_argument(
             "--entailment_cache_id", default=None, type=str,
             help='Restore entailment predictions from previous run for GPT-4/LLaMa-Entailment.')
+        parser.add_argument('--compute_p_true_in_compute_stage',
+                            default=False, action=argparse.BooleanOptionalAction)
 
     return parser
 
@@ -228,3 +236,22 @@ def get_reference(example):
     answers = [answer for answer in example['answers']['text']]
     reference = {'answers': {'answer_start': answer_starts, 'text': answers}, 'id': example['id']}
     return reference
+
+
+def save(object, file):
+    with open(f'{wandb.run.dir}/{file}', 'wb') as f:
+        pickle.dump(object, f)
+    wandb.save(f'{wandb.run.dir}/{file}')
+
+
+def init_model(args):
+    mn = args.model_name
+    if 'llama' in mn.lower() or 'falcon' in mn:
+        model = HuggingfaceModel(
+            mn, stop_sequences='default',
+            max_new_tokens=args.model_max_new_tokens)
+    elif mn.startswith('oai'):
+        model = OpenAIModel(mn.split('.')[1], stop_sequences='default')
+    else:
+        raise ValueError(f'Unknown model_name `{mn}`.')
+    return model

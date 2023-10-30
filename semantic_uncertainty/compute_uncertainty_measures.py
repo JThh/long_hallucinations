@@ -21,10 +21,14 @@ from uncertainty.uncertainty_measures.semantic_entropy import context_entails_re
 from uncertainty.uncertainty_measures.semantic_entropy import EntailmentDeberta
 from uncertainty.uncertainty_measures.semantic_entropy import EntailmentGPT4
 from uncertainty.uncertainty_measures.semantic_entropy import EntailmentLlama
+from uncertainty.uncertainty_measures import p_true as p_true_utils
+
 from uncertainty.utils import utils
 
 
 utils.setup_logger()
+
+EXP_DETAILS = 'experiment_details.pkl'
 
 
 def main(args):
@@ -39,7 +43,7 @@ def main(args):
     if args.assign_new_wandb_id:
         logging.info('Assign new wandb_id.')
         api = wandb.Api()
-        old_run = api.run(f'{args.restore_entity_eval}/{project.replace("_debug","")}/{args.eval_wandb_runid}')
+        old_run = api.run(f'{args.restore_entity_eval}/{project}/{args.eval_wandb_runid}')
         wandb.init(
             entity=args.entity,
             # set the wandb project where this run will be logged
@@ -84,7 +88,6 @@ def main(args):
             train_generations = pickle.load(infile)
         wandb.config.update(
             {"ood_training_set": old_run_train.config['dataset']}, allow_val_change=True)
-
     else:
         is_ood_eval = False  # pylint: disable=invalid-name
         train_generations_pickle = restore('train_generations.pkl')
@@ -94,13 +97,25 @@ def main(args):
     wandb.config.update({"is_ood_eval": is_ood_eval}, allow_val_change=True)
 
     if args.entailment_model == 'deberta':
-        model = EntailmentDeberta()
+        entailment_model = EntailmentDeberta()
     elif args.entailment_model == 'gpt-4':
-        model = EntailmentGPT4(args.entailment_cache_id)
+        entailment_model = EntailmentGPT4(args.entailment_cache_id)
     elif 'llama' in args.entailment_model.lower():
-        model = EntailmentLlama(args.entailment_cache_id, args.entailment_model)
+        entailment_model = EntailmentLlama(args.entailment_cache_id, args.entailment_model)
     else:
         raise ValueError
+
+    if args.compute_p_true_in_compute_stage:
+        old_exp = restore(EXP_DETAILS)
+        with open(old_exp.name, "rb") as infile:
+            old_exp = pickle.load(infile)
+        # TODO: Could also share model between entailment and p_true when appropriate.
+        model = utils.init_model(old_exp['args'])
+        p_true_few_shot_prompt = old_exp['p_true_few_shot_prompt']
+        logging.info('Restored few-shot prompt for p_true.')
+        logging.info(80*'#')
+        logging.info('p_true_few_shot_prompt: %s', p_true_few_shot_prompt)
+        logging.info(80*'#')
 
     result_dict_pickle = restore('uncertainty_measures.pkl')
     with open(result_dict_pickle.name, "rb") as infile:
@@ -113,6 +128,7 @@ def main(args):
 
     entropies, accuracies = defaultdict(list), defaultdict(list)
     validation_embeddings, validation_is_true, validation_answerable = [], [], []
+    p_trues = []
     count = 0  # pylint: disable=invalid-name
 
     if len(validation_generations) == 400:
@@ -155,16 +171,15 @@ def main(args):
             if args.compute_context_entails_response:
                 # Compute context entails answer baseline.
                 entropies['context_entails_response'].append(context_entails_response(
-                    context, responses, model))
+                    context, responses, entailment_model))
 
             if args.condition_on_question and args.entailment_model == 'deberta':
                 responses = [f'{question} {r}' for r in responses]
 
             # Compute semantic ids.
             semantic_ids = get_semantic_ids(
-                responses, model=model, strict_entailment=args.strict_entailment,
-                example=example,
-                )
+                responses, model=entailment_model,
+                strict_entailment=args.strict_entailment, example=example)
 
             result_dict['semantic_ids'].append(semantic_ids)
 
@@ -227,6 +242,14 @@ def main(args):
             logging.info('High Temp Generation:')
             logging.info(log_str, semantic_ids, log_liks_agg, entropies_fmt)
 
+        if args.compute_p_true_in_compute_stage:
+            # Already compute p_true here. Avoid heavy lifting in downstream scripts.
+            p_true = p_true_utils.calculate_p_true(
+                model, question, most_likely_answer['response'],
+                responses, p_true_few_shot_prompt, hint=old_exp['args'].p_true_hint)
+            p_trues.append(p_true)
+            logging.info('p_true: %s', p_true)
+
         count += 1
         if count >= args.num_eval_samples:
             logging.info('Breaking out of main loop.')
@@ -274,12 +297,14 @@ def main(args):
             eval_embeddings=validation_embeddings, eval_is_false=validation_unanswerable)
         result_dict['uncertainty_measures']['p_ik_unanswerable'] = p_ik_predictions
 
-    # write the dictionary to a pickle file
-    with open(f'{wandb.run.dir}/uncertainty_measures.pkl', 'wb') as f:
-        pickle.dump(result_dict, f)
-    wandb.save(f'{wandb.run.dir}/uncertainty_measures.pkl')
+    if args.compute_p_true_in_compute_stage:
+        p_false = [1 - p for p in p_trues]
+        result_dict['uncertainty_measures']['p_false'] = p_false
 
-    model.save_prediction_cache()
+    # write the dictionary to a pickle file
+    utils.save('uncertainty_measures.pkl', result_dict)
+
+    entailment_model.save_prediction_cache()
 
     if args.analyze_run:
         logging.info(50 * '#X')

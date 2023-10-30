@@ -16,9 +16,8 @@ from huggingface_hub import snapshot_download
 
 
 from uncertainty.models.base_model import BaseModel
+from uncertainty.models.base_model import STOP_SEQUENCES
 
-
-STOP_SEQUENCES = ['\n\n', '\n', 'Question:', 'Context:']
 
 
 class StoppingCriteriaSub(StoppingCriteria):
