@@ -29,15 +29,6 @@ utils.setup_logger()
 
 def main(args):
 
-    if args.entailment_model == 'deberta':
-        model = EntailmentDeberta()
-    elif args.entailment_model == 'gpt-4':
-        model = EntailmentGPT4()
-    elif 'llama' in args.entailment_model.lower():
-        model = EntailmentLlama(args.entailment_model)
-    else:
-        raise ValueError
-
     if args.train_wandb_runid is None:
         args.train_wandb_runid = args.eval_wandb_runid
 
@@ -100,11 +91,17 @@ def main(args):
         with open(train_generations_pickle.name, 'rb') as infile:
             train_generations = pickle.load(infile)
 
-    wandb.config.update({
-        "is_ood_eval": is_ood_eval
-    },
-        allow_val_change=True
-    )
+    wandb.config.update({"is_ood_eval": is_ood_eval}, allow_val_change=True)
+
+    if args.entailment_model == 'deberta':
+        model = EntailmentDeberta()
+    elif args.entailment_model == 'gpt-4':
+        model = EntailmentGPT4(args.entailment_cache_id)
+    elif 'llama' in args.entailment_model.lower():
+        model = EntailmentLlama(args.entailment_cache_id, args.entailment_model)
+    else:
+        raise ValueError
+
     result_dict_pickle = restore('uncertainty_measures.pkl')
     with open(result_dict_pickle.name, "rb") as infile:
         result_dict = pickle.load(infile)
@@ -280,8 +277,9 @@ def main(args):
     # write the dictionary to a pickle file
     with open(f'{wandb.run.dir}/uncertainty_measures.pkl', 'wb') as f:
         pickle.dump(result_dict, f)
-
     wandb.save(f'{wandb.run.dir}/uncertainty_measures.pkl')
+
+    model.save_prediction_cache()
 
     if args.analyze_run:
         logging.info(50 * '#X')

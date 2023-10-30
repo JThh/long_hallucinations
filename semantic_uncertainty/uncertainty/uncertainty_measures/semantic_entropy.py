@@ -1,9 +1,11 @@
 """Implement semantic entropy."""
 import os
+import pickle
 import logging
 
 import random
 import numpy as np
+import wandb
 import openai
 import torch
 import torch.nn.functional as F
@@ -21,7 +23,13 @@ openai.api_key = os.getenv("OPENAI_API_KEY_OX")
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 
-class EntailmentDeberta:
+class BaseEntailment:
+
+    def save_prediction_cache(self):
+        pass
+
+
+class EntailmentDeberta(BaseEntailment):
     def __init__(self):
         self.tokenizer = AutoTokenizer.from_pretrained("microsoft/deberta-v2-xlarge-mnli")
         self.model = AutoModelForSequenceClassification.from_pretrained(
@@ -39,9 +47,32 @@ class EntailmentDeberta:
         return largest_index.cpu().item()
 
 
-class EntailmentLLM:
-    def __init__(self):
-        self.prediction_cache = {}
+class EntailmentLLM(BaseEntailment):
+
+    entailment_file = 'entailment_cache.pkl'
+
+    def __init__(self, entailment_cache_id):
+        self.prediction_cache = self.init_prediction_cache(entailment_cache_id)
+
+    def init_prediction_cache(self, entailment_cache_id):
+        if entailment_cache_id is None:
+            return dict()
+
+        logging.info('Restoring prediction cache from %s', entailment_cache_id)
+
+        api = wandb.Api()
+        run = api.run(entailment_cache_id)
+        run.file(self.entailment_file).download(
+            replace=True, exist_ok=False, root=wandb.run.dir)
+
+        with open(f'{wandb.run.dir}/{self.entailment_file}', "rb") as infile:
+            return pickle.load(infile)
+
+    def save_prediction_cache(self):
+        # write the dictionary to a pickle file
+        with open(f'{wandb.run.dir}/{self.entailment_file}', 'wb') as f:
+            pickle.dump(self.prediction_cache, f)
+        wandb.save(f'{wandb.run.dir}/{self.entailment_file}')
 
     def check_implication(self, text1, text2, example=None):
         if example is None:
@@ -74,10 +105,9 @@ class EntailmentLLM:
 
 class EntailmentGPT4(EntailmentLLM):
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, entailment_cache_id):
+        super().__init__(entailment_cache_id)
         self.name = 'GPT-4'
-
 
     def equivalence_prompt(self, text1, text2, question):
 
@@ -99,8 +129,8 @@ class EntailmentGPT4(EntailmentLLM):
 
 class EntailmentLlama(EntailmentLLM):
 
-    def __init__(self, name):
-        super().__init__()
+    def __init__(self, entailment_cache_id, name):
+        super().__init__(entailment_cache_id)
         self.name = name
         self.model = HuggingfaceModel(
             name, stop_sequences='default', max_new_tokens=30)

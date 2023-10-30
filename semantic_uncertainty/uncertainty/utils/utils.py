@@ -120,6 +120,9 @@ def get_parser(stages=['generate', 'compute']):
         parser.add_argument('--use_num_generations', type=int, default=-1)
         parser.add_argument(
             "--entailment_model", default='deberta', type=str)
+        parser.add_argument(
+            "--entailment_cache_id", default=None, type=str,
+            help='Restore entailment predictions from previous run for GPT-4/LLaMa-Entailment.')
 
     return parser
 
