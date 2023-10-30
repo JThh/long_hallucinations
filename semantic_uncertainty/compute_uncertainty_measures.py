@@ -298,8 +298,8 @@ def main(args):
         result_dict['uncertainty_measures']['p_ik_unanswerable'] = p_ik_predictions
 
     if args.compute_p_true_in_compute_stage:
-        p_false = [1 - p for p in p_trues]
-        result_dict['uncertainty_measures']['p_false'] = p_false
+        result_dict['uncertainty_measures']['p_false'] = [1 - p for p in p_trues]
+        result_dict['uncertainty_measures']['p_false_fixed'] = [1 - np.exp(p) for p in p_trues]
 
     # write the dictionary to a pickle file
     utils.save('uncertainty_measures.pkl', result_dict)

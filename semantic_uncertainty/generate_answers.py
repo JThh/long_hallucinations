@@ -256,8 +256,10 @@ def main(args):
         # Already compute p_true here. Avoid heavy lifting in downstream scripts.
         if dataset_split == 'validation':
             if args.compute_p_true:
-                p_false = [1 - p for p in p_trues]
-                results_dict['uncertainty_measures'] = {'p_false':  p_false}
+                results_dict['uncertainty_measures'] = {
+                    'p_false':  [1 - p for p in p_trues],
+                    'p_false_fixed':  [1 - np.exp(p) for p in p_trues],
+                }
             utils.save(results_dict, 'uncertainty_measures.pkl')
 
     utils.save(experiment_details, 'experiment_details.pkl')
