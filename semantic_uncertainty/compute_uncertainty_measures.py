@@ -11,6 +11,7 @@ import torch
 
 from analyze_results import analyze_run
 
+from uncertainty.data.data_utils import load_ds
 from uncertainty.uncertainty_measures.p_ik import get_p_ik
 from uncertainty.uncertainty_measures.semantic_entropy import get_semantic_ids
 from uncertainty.uncertainty_measures.semantic_entropy import logsumexp_by_id
@@ -90,9 +91,10 @@ def main(args):
             {"ood_training_set": old_run_train.config['dataset']}, allow_val_change=True)
     else:
         is_ood_eval = False  # pylint: disable=invalid-name
-        train_generations_pickle = restore('train_generations.pkl')
-        with open(train_generations_pickle.name, 'rb') as infile:
-            train_generations = pickle.load(infile)
+        if args.compute_p_ik or args.compute_p_ik_answerable:
+            train_generations_pickle = restore('train_generations.pkl')
+            with open(train_generations_pickle.name, 'rb') as infile:
+                train_generations = pickle.load(infile)
 
     wandb.config.update({"is_ood_eval": is_ood_eval}, allow_val_change=True)
 
@@ -109,10 +111,38 @@ def main(args):
         old_exp = restore(EXP_DETAILS)
         with open(old_exp.name, "rb") as infile:
             old_exp = pickle.load(infile)
-        # TODO: Could also share model between entailment and p_true when appropriate.
-        model = utils.init_model(old_exp['args'])
-        p_true_few_shot_prompt = old_exp['p_true_few_shot_prompt']
-        logging.info('Restored few-shot prompt for p_true.')
+        # TODO: Could also share model between entailment and p_true when appropriate
+        if args.reuse_entailment_model:
+            pt_model = entailment_model.model
+        else:
+            pt_model = utils.init_model(old_exp['args'])
+        pt_train_dataset, pt_validation_dataset = load_ds(
+            old_exp['args'].dataset, add_options=old_exp['args'].use_mc_options)
+
+        # Reduce num generations used in p_true if needed!
+        if not args.use_all_generations:
+            if args.use_num_generations == -1:
+                raise ValueError
+            num_gen = args.use_num_generations
+        else:
+            num_gen = args.num_generations
+
+        p_true_few_shot_prompt, p_true_responses, len_p_true = p_true_utils.construct_few_shot_prompt(
+            model=pt_model,
+            dataset=pt_train_dataset,
+            indices=old_exp['p_true_indices'],
+            prompt=old_exp['prompt'],
+            brief=old_exp['BRIEF'],
+            brief_always=old_exp['args'].brief_always and old_exp['args'].enable_brief,
+            make_prompt=utils.get_make_prompt(old_exp['args']),
+            # THIS WE WANT TO CHANGE!
+            num_generations=num_gen,
+            metric=utils.get_metric(old_exp['args'].metric))
+        wandb.config.update(
+            {'p_true_num_fewshot': len_p_true}, allow_val_change=True)
+        wandb.log(dict(len_p_true=len_p_true))
+
+        logging.info('Generated few-shot prompt for p_true.')
         logging.info(80*'#')
         logging.info('p_true_few_shot_prompt: %s', p_true_few_shot_prompt)
         logging.info(80*'#')
@@ -245,10 +275,11 @@ def main(args):
         if args.compute_p_true_in_compute_stage:
             # Already compute p_true here. Avoid heavy lifting in downstream scripts.
             p_true = p_true_utils.calculate_p_true(
-                model, question, most_likely_answer['response'],
-                responses, p_true_few_shot_prompt, hint=old_exp['args'].p_true_hint)
+                pt_model, question, most_likely_answer['response'],
+                responses, p_true_few_shot_prompt,
+                hint=old_exp['args'].p_true_hint)
             p_trues.append(p_true)
-            logging.info('p_true: %s', p_true)
+            logging.info('p_true: %s', np.exp(p_true))
 
         count += 1
         if count >= args.num_eval_samples:
@@ -302,7 +333,7 @@ def main(args):
         result_dict['uncertainty_measures']['p_false_fixed'] = [1 - np.exp(p) for p in p_trues]
 
     # write the dictionary to a pickle file
-    utils.save('uncertainty_measures.pkl', result_dict)
+    utils.save(result_dict, 'uncertainty_measures.pkl')
 
     entailment_model.save_prediction_cache()
 

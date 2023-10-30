@@ -5,6 +5,8 @@ import pickle
 
 import wandb
 
+from evaluate import load
+
 from uncertainty.models.huggingface_models import HuggingfaceModel
 from uncertainty.models.oai_models import OpenAIModel
 
@@ -124,14 +126,16 @@ def get_parser(stages=['generate', 'compute']):
                             default=True, action=argparse.BooleanOptionalAction)
         parser.add_argument('--use_all_generations', default=True, action=argparse.BooleanOptionalAction)
         parser.add_argument('--use_num_generations', type=int, default=-1)
-        parser.add_argument(
-            "--entailment_model", default='deberta', type=str)
+        parser.add_argument("--entailment_model", default='deberta', type=str)
         parser.add_argument(
             "--entailment_cache_id", default=None, type=str,
             help='Restore entailment predictions from previous run for GPT-4/LLaMa-Entailment.')
+        parser.add_argument('--entailment_cache_only', default=False, action=argparse.BooleanOptionalAction)
         parser.add_argument('--compute_p_true_in_compute_stage',
                             default=False, action=argparse.BooleanOptionalAction)
-
+        parser.add_argument('--reuse_entailment_model',
+                            default=False, action=argparse.BooleanOptionalAction,
+                            help='Use entailment model as p_true model.')
     return parser
 
 
@@ -255,3 +259,45 @@ def init_model(args):
     else:
         raise ValueError(f'Unknown model_name `{mn}`.')
     return model
+
+
+def get_make_prompt(args):
+    if args.prompt_type == 'default':
+        def make_prompt(context, question, answer, brief, brief_always):
+            prompt = ''
+            if brief_always:
+                prompt += brief
+            if args.use_context and (context is not None):
+                prompt += f"Context: {context}\n"
+            prompt += f"Question: {question}\n"
+            if answer:
+                prompt += f"Answer: {answer}\n\n"
+            else:
+                prompt += 'Answer:'
+            return prompt
+    elif args.prompt_type == 'chat':
+        # TODO! possibly use a different prompt here?
+        raise
+    else:
+        raise ValueError
+
+    return make_prompt
+
+
+def get_metric(metric):
+    if metric == 'squad':
+
+        squad_metric = load("squad_v2")
+
+        def metric(response, example, *args, **kwargs):
+            prediction = {'prediction_text': response, 'no_answer_probability': 0.0, 'id': example['id']}
+            results = squad_metric.compute(
+                predictions=[prediction],
+                references=[get_reference(example)])
+            return 1.0 if (results['f1'] >= 50.0) else 0.0
+
+    elif metric == 'llm':
+        metric = llm_metric
+    else:
+        raise ValueError
+    return metric

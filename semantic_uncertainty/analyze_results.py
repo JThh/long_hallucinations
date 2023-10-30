@@ -93,9 +93,16 @@ def analyze_run(wandb_runid, assign_new_wandb_id=False, answer_fractions_mode='d
         result_dict['performance'][name]['mean'] = np.mean(target)
         result_dict['performance'][name]['bootstrap'] = bootstrap(np.mean, rng)(target)
 
+    rum = results_old['uncertainty_measures']
+    if 'p_false' in rum and 'p_false_fixed' not in rum:
+        # restore log probs true: y = 1 - x --> x = 1 - y
+        # convert to probs --> np.exp(1 - y)
+        # conert to p_false --> 1- np.exp(1-y)
+        rum['p_false_fixed'] = [1 - np.exp(1 - x) for x in rum['p_false']]
+
     # Next: Uncertainty Measures
     # Iterate through the dictionary and compute additional metrics for each measure.
-    for measure_name, measure_values in results_old['uncertainty_measures'].items():
+    for measure_name, measure_values in rum.items():
         logging.info('Computing for uncertainty measure `%s`.', measure_name)
 
         if len(measure_values) == 400:
