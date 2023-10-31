@@ -161,9 +161,6 @@ def main(args):
     p_trues = []
     count = 0  # pylint: disable=invalid-name
 
-    if len(validation_generations) == 400:
-        raise ValueError("Very likely this is a bug where validation data contains train data.")
-
     def is_answerable(generation):
         return len(generation['reference']['answers']['text']) > 0
 
