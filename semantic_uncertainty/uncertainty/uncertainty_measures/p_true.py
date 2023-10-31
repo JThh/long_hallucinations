@@ -70,10 +70,10 @@ def construct_few_shot_prompt(
         if max_input_len < model.token_limit:
             few_shot_prompt.extend(prompt_candidate)
         else:
-            logging.warning('Cutting of p_true prompt after %d iterations.', i)
+            logging.warning('Cutting of p_true prompt at length %d.', it)
             break
 
-    return ''.join(few_shot_prompt), all_responses, i
+    return ''.join(few_shot_prompt), all_responses, it
 
 
 def calculate_p_true(model, question, most_probable_answer, brainstormed_answers, few_shot_prompt, hint=False):
