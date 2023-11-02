@@ -52,8 +52,9 @@ class EntailmentLLM(BaseEntailment):
 
     entailment_file = 'entailment_cache.pkl'
 
-    def __init__(self, entailment_cache_id):
+    def __init__(self, entailment_cache_id, entailment_cache_only):
         self.prediction_cache = self.init_prediction_cache(entailment_cache_id)
+        self.entailment_cache_only = entailment_cache_only
 
     def init_prediction_cache(self, entailment_cache_id):
         if entailment_cache_id is None:
@@ -85,6 +86,8 @@ class EntailmentLLM(BaseEntailment):
             logging.info('Restoring hashed instead of predicting with model.')
             response = self.prediction_cache[hashed]
         else:
+            if self.entailment_cache_only:
+                raise ValueError
             response = self.predict(prompt, temperature=0.02)
             self.prediction_cache[hashed] = response
 
@@ -104,8 +107,8 @@ class EntailmentLLM(BaseEntailment):
 
 class EntailmentGPT4(EntailmentLLM):
 
-    def __init__(self, entailment_cache_id):
-        super().__init__(entailment_cache_id)
+    def __init__(self, entailment_cache_id, entailment_cache_only):
+        super().__init__(entailment_cache_id, entailment_cache_only)
         self.name = 'GPT-4'
 
     def equivalence_prompt(self, text1, text2, question):
@@ -128,8 +131,8 @@ class EntailmentGPT4(EntailmentLLM):
 
 class EntailmentLlama(EntailmentLLM):
 
-    def __init__(self, entailment_cache_id, name):
-        super().__init__(entailment_cache_id)
+    def __init__(self, entailment_cache_id, entailment_cache_only, name):
+        super().__init__(entailment_cache_id, entailment_cache_only)
         self.name = name
         self.model = HuggingfaceModel(
             name, stop_sequences='default', max_new_tokens=30)

@@ -96,19 +96,35 @@ def main(args):
             with open(train_generations_pickle.name, 'rb') as infile:
                 train_generations = pickle.load(infile)
 
+    if args.restore_details_id is None:
+        restore_details = restore
+    else:
+        details_run = api.run(f'{args.restore_entity_eval}/{project}/{args.restore_details_id}')
+
+        def restore_details(filename):
+            details_run.file(filename).download(
+                replace=True, exist_ok=False, root=wandb.run.dir)
+
+            class Restored:
+                name = f'{wandb.run.dir}/{filename}'
+
+            return Restored
+
     wandb.config.update({"is_ood_eval": is_ood_eval}, allow_val_change=True)
 
+    logging.info('Beginning loading for entailment model.')
     if args.entailment_model == 'deberta':
         entailment_model = EntailmentDeberta()
     elif args.entailment_model == 'gpt-4':
-        entailment_model = EntailmentGPT4(args.entailment_cache_id)
+        entailment_model = EntailmentGPT4(args.entailment_cache_id, args.entailment_cache_only)
     elif 'llama' in args.entailment_model.lower():
-        entailment_model = EntailmentLlama(args.entailment_cache_id, args.entailment_model)
+        entailment_model = EntailmentLlama(args.entailment_cache_id, args.entailment_cache_only, args.entailment_model)
     else:
         raise ValueError
+    logging.info('Entailment model loading complete.')
 
     if args.compute_p_true_in_compute_stage:
-        old_exp = restore(EXP_DETAILS)
+        old_exp = restore_details(EXP_DETAILS)
         with open(old_exp.name, "rb") as infile:
             old_exp = pickle.load(infile)
         # TODO: Could also share model between entailment and p_true when appropriate

@@ -105,9 +105,6 @@ def analyze_run(wandb_runid, assign_new_wandb_id=False, answer_fractions_mode='d
     for measure_name, measure_values in rum.items():
         logging.info('Computing for uncertainty measure `%s`.', measure_name)
 
-        if len(measure_values) == 400:
-            raise ValueError('Very likely this is a bug where validation data also contains train data.')
-
         # Validation accuracy.
         validation_is_falses = [
             results_old['validation_is_false'],
@@ -156,7 +153,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--wandb_runids', nargs='+', type=str,
                         help='Wandb run ids of the datasets to evaluate on.')
-    parser.add_argument('--assign_new_wandb_id', default=False,
+    parser.add_argument('--assign_new_wandb_id', default=True,
                         action=argparse.BooleanOptionalAction)
     parser.add_argument('--answer_fractions_mode', type=str, default='default')
 

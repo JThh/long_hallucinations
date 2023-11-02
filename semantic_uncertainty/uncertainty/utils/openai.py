@@ -10,7 +10,7 @@ import openai
 openai.api_key = os.environ['OPENAI_API_KEY_OX']
 
 
-@retry(wait=wait_random_exponential(min=5, max=60), stop=stop_after_attempt(100))
+@retry(wait=wait_random_exponential(min=5, max=60))
 def predict(prompt, temperature=1.0):
     """Predict with GPT-4 model."""
     if isinstance(prompt, str):
