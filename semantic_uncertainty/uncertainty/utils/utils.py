@@ -136,7 +136,6 @@ def get_parser(stages=['generate', 'compute']):
         parser.add_argument('--reuse_entailment_model',
                             default=False, action=argparse.BooleanOptionalAction,
                             help='Use entailment model as p_true model.')
-        parser.add_argument('--restore_details_id', type=str, default=None)
     return parser
 
 
