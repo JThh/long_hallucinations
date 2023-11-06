@@ -280,7 +280,7 @@ class HuggingfaceModel(BaseModel):
             hidden = outputs.hidden_states
 
         # first access states for last token generation before stop token
-        last_generation = hidden[n_generated - 1]
+        last_generation = hidden[n_generated]
         # then access. last layer for that generation
         last_layer = last_generation[-1]
         # then access last token in that generation
