@@ -259,17 +259,21 @@ class HuggingfaceModel(BaseModel):
         # in tokenization (particularly around whitespaces.)
         token_stop_index = self.tokenizer(full_answer[:input_data_offset + stop_at], return_tensors="pt")['input_ids'].shape[1]
         n_input_token = len(inputs['input_ids'][0])
-        n_generated = token_stop_index - n_input_token  # excluding stop tokens
+        n_generated = token_stop_index - n_input_token
 
         if n_generated == 0:
             logging.warning('Only stop_words were generated. For likelihoods and embeddings, taking stop word instead.')
             n_generated = 1
 
-
         # Get the last hidden state (last layer) and the last token's embedding of the answer.
         # Note: We do not want this to be the stop token.
 
         # outputs.hidden_state is a tuple of len = n_generated_tokens.
+        # The first hidden state is for the input tokens and is of shape (n_layers) x (batch_size, input_size, hidden_size).
+        # (Note this includes the first generated token!)
+        # The remaining hidden states are for the remaining generated tokens and is of shape (n_layers) x (batch_size, 1, hidden_size).
+
+        # TODO: Is this note wrong? Or is it true for falcon models?
         # Note: The output embeddings have the shape (batch_size, generated_length, hidden_size). We do not get
         # embeddings for input_data! We thus subtract the n_tokens_in_input from
         # token_stop_index to arrive at the right output.
@@ -279,11 +283,14 @@ class HuggingfaceModel(BaseModel):
         else:
             hidden = outputs.hidden_states
 
-        # first access states for last token generation before stop token
-        last_generation = hidden[n_generated]
-        # then access. last layer for that generation
-        last_layer = last_generation[-1]
-        # then access last token in that generation
+        # # P_IK wants last state of input. OR DOES IT? DISABLE FOR NOW?
+        # # First access states for input
+        # last_input = hidden[0]
+        # First access states for last token generation before stop token.and
+        last_input = hidden[n_generated - 1]
+        # Then access last layer for input
+        last_layer = last_input[-1]
+        # Then access last token in input.
         last_token_embedding = last_layer[:, -1, :].cpu()
 
         # Get log_likelihoods.
