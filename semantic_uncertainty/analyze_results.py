@@ -125,6 +125,14 @@ def analyze_run(wandb_runid, assign_new_wandb_id=False, answer_fractions_mode='d
 
             validation_is_false = np.array(validation_is_false)
             validation_accuracy = 1 - validation_is_false
+            if len(measure_values) > len(validation_is_false):
+                # This can happen, but only for p_false.
+                if 'p_false' not in measure_name:
+                    raise ValueError
+                logging.warning(
+                    'More measure values for %s than in validation_is_false. Len(measure values): %d, Len(validation_is_false): %d',
+                    measure_name, len(measure_values), len(validation_is_false))
+                measure_values = measure_values[:len(validation_is_false)]
 
             fargs = {
                 'AUROC': [validation_is_false, measure_values],

@@ -60,6 +60,8 @@ def load_ds(dataset_name, add_options=None):
         validation_dataset = dataset["validation"]
 
     elif dataset_name == "bioasq":
+        # http://participants-area.bioasq.org/datasets/ we are using training 11b
+        # could also download from here https://zenodo.org/records/7655130
         path = f"/scratch-ssd/{user}/uncertainty/data/bioasq/training11b.json"
         with open(path, "rb") as file:
             data = json.load(file)

@@ -242,10 +242,6 @@ def get_reference(example):
     return reference
 
 
-def save(object, file):
-    with open(f'{wandb.run.dir}/{file}', 'wb') as f:
-        pickle.dump(object, f)
-    wandb.save(f'{wandb.run.dir}/{file}')
 
 
 def init_model(args):
@@ -301,3 +297,9 @@ def get_metric(metric):
     else:
         raise ValueError
     return metric
+
+
+def save(object, file):
+    with open(f'{wandb.run.dir}/{file}', 'wb') as f:
+        pickle.dump(object, f)
+    wandb.save(f'{wandb.run.dir}/{file}')

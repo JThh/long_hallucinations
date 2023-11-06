@@ -73,8 +73,10 @@ def main(args):
     BRIEF = utils.BRIEF_PROMPTS[args.brief_prompt]
 
     arg = args.brief_always if args.enable_brief else True
+
     prompt = utils.construct_fewshot_prompt_from_indices(
         train_dataset, prompt_indices, BRIEF, arg, make_prompt)
+
     experiment_details['prompt'] = prompt
     experiment_details['BRIEF'] = BRIEF
     logging.info('Prompt is: %s', prompt)
