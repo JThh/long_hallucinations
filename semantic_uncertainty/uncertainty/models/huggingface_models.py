@@ -309,13 +309,14 @@ class HuggingfaceModel(BaseModel):
         # But can be off by one due to whitespaces.
 
         # falcon-7b
-        # len(hidden), len(hidden[0]), hidden[0][0].shape, hidden[1][0].shape, hidden[1][-1].shape, hidden[token_stop_index - 1][-1].shape
-        # (4, 33, torch.Size([1, 53, 4544]), torch.Size([1, 54, 4544]), torch.Size([1, 54, 4544]), torch.Size([1, 55, 4544]))
+        # len(hidden), len(hidden[0]), hidden[0][0].shape, hidden[1][0].shape, hidden[1][-1].shape, hidden[-1][-1].shape
+        # (4, 33, torch.Size([1, 53, 4544]), torch.Size([1, 1, 4544]), torch.Size([1, 1, 4544]), torch.Size([1, 1, 4544]))
         # llama-7b
-        # (3, 33, torch.Size([1, 60, 4544]), torch.Size([1, 61, 4544]), torch.Size([1, 61, 4544]), torch.Size([1, 61, 4544]))
+        # (3, 33, torch.Size([1, 60, 4544]), torch.Size([1, 1, 4544]), torch.Size([1, 1, 4544]), torch.Size([1, 1, 4544]))
 
         if len(log_likelihoods) == self.max_new_tokens:
             logging.warning('Generation interrupted by max_token limit.')
+
 
         if len(log_likelihoods) == 0:
             raise ValueError

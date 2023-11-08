@@ -242,8 +242,6 @@ def get_reference(example):
     return reference
 
 
-
-
 def init_model(args):
     mn = args.model_name
     if 'llama' in mn.lower() or 'falcon' in mn:
