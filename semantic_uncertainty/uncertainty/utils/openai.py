@@ -11,7 +11,7 @@ openai.api_key = os.environ['OPENAI_API_KEY_OX']
 
 
 @retry(wait=wait_random_exponential(min=5, max=60))
-def predict(prompt, temperature=1.0):
+def predict(prompt, temperature=1.0, model='gpt-4'):
     """Predict with GPT-4 model."""
     if isinstance(prompt, str):
         messages = [
@@ -20,8 +20,15 @@ def predict(prompt, temperature=1.0):
     else:
         messages = prompt
 
+    if model == 'gpt-4':
+        model = 'gpt-4-0613'
+    elif model == 'gpt-4-turbo':
+        model = 'gpt-4-1106-preview'
+    elif model == 'gpt-3.5':
+        model = 'gpt-3.5-turbo-1106'
+
     output = openai.ChatCompletion.create(
-        model='gpt-4',
+        model=model,
         messages=messages,
         max_tokens=200,
         temperature=temperature,

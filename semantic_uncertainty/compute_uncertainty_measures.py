@@ -21,6 +21,8 @@ from uncertainty.uncertainty_measures.semantic_entropy import cluster_assignment
 from uncertainty.uncertainty_measures.semantic_entropy import context_entails_response
 from uncertainty.uncertainty_measures.semantic_entropy import EntailmentDeberta
 from uncertainty.uncertainty_measures.semantic_entropy import EntailmentGPT4
+from uncertainty.uncertainty_measures.semantic_entropy import EntailmentGPT35
+from uncertainty.uncertainty_measures.semantic_entropy import EntailmentGPT4Turbo
 from uncertainty.uncertainty_measures.semantic_entropy import EntailmentLlama
 from uncertainty.uncertainty_measures import p_true as p_true_utils
 
@@ -103,6 +105,10 @@ def main(args):
         entailment_model = EntailmentDeberta()
     elif args.entailment_model == 'gpt-4':
         entailment_model = EntailmentGPT4(args.entailment_cache_id, args.entailment_cache_only)
+    elif args.entailment_model == 'gpt-3.5':
+        entailment_model = EntailmentGPT35(args.entailment_cache_id, args.entailment_cache_only)
+    elif args.entailment_model == 'gpt-4-turbo':
+        entailment_model = EntailmentGPT4Turbo(args.entailment_cache_id, args.entailment_cache_only)
     elif 'llama' in args.entailment_model.lower():
         entailment_model = EntailmentLlama(args.entailment_cache_id, args.entailment_cache_only, args.entailment_model)
     else:

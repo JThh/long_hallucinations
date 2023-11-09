@@ -109,7 +109,7 @@ class EntailmentGPT4(EntailmentLLM):
 
     def __init__(self, entailment_cache_id, entailment_cache_only):
         super().__init__(entailment_cache_id, entailment_cache_only)
-        self.name = 'GPT-4'
+        self.name = 'gpt-4'
 
     def equivalence_prompt(self, text1, text2, question):
 
@@ -126,7 +126,21 @@ class EntailmentGPT4(EntailmentLLM):
         return prompt
 
     def predict(self, prompt, temperature):
-        return oai.predict(prompt, temperature)
+        return oai.predict(prompt, temperature, model=self.name)
+
+
+class EntailmentGPT35(EntailmentGPT4):
+
+    def __init__(self, entailment_cache_id, entailment_cache_only):
+        super().__init__(entailment_cache_id, entailment_cache_only)
+        self.name = 'gpt-3.5'
+
+
+class EntailmentGPT4Turbo(EntailmentGPT4):
+
+    def __init__(self, entailment_cache_id, entailment_cache_only):
+        super().__init__(entailment_cache_id, entailment_cache_only)
+        self.name = 'gpt-4-turbo'
 
 
 class EntailmentLlama(EntailmentLLM):
