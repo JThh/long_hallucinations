@@ -4,15 +4,16 @@ import hashlib
 from tenacity import (retry, stop_after_attempt,  # for exponential backoff
                       wait_random_exponential)
 
-import openai
+from openai import OpenAI
 
 
-openai.api_key = os.environ['OPENAI_API_KEY_OX']
+CLIENT = OpenAI(api_key=os.environ['OPENAI_API_KEY_OX'])
 
 
 @retry(wait=wait_random_exponential(min=5, max=60))
 def predict(prompt, temperature=1.0, model='gpt-4'):
     """Predict with GPT-4 model."""
+
     if isinstance(prompt, str):
         messages = [
             {"role": "user", "content": prompt},
@@ -27,13 +28,13 @@ def predict(prompt, temperature=1.0, model='gpt-4'):
     elif model == 'gpt-3.5':
         model = 'gpt-3.5-turbo-1106'
 
-    output = openai.ChatCompletion.create(
+    output = CLIENT.chat.completions.create(
         model=model,
         messages=messages,
         max_tokens=200,
         temperature=temperature,
     )
-    response = output['choices'][0]['message']['content']
+    response = output.choices[0].message.content
     return response
 
 

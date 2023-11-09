@@ -317,7 +317,6 @@ class HuggingfaceModel(BaseModel):
         if len(log_likelihoods) == self.max_new_tokens:
             logging.warning('Generation interrupted by max_token limit.')
 
-
         if len(log_likelihoods) == 0:
             raise ValueError
             # logging.warning(
