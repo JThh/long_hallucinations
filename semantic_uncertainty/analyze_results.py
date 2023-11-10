@@ -86,8 +86,11 @@ def analyze_run(wandb_runid, assign_new_wandb_id=False, answer_fractions_mode='d
     result_dict = {'performance': {}, 'uncertainty': {}}
 
     # First: Compute Simple Accuracy metrics of the model predictions
-    all_accuracies = {name: 1 - np.array(data) for name, data in results_old['alt_validation_is_false'].items()}
+    all_accuracies = dict()
+    if 'alt_validation_is_false' in results_old:
+        all_accuracies.update({name: 1 - np.array(data) for name, data in results_old['alt_validation_is_false'].items()})
     all_accuracies['accuracy'] = 1 - np.array(results_old['validation_is_false'])
+
     for name, target in all_accuracies.items():
         result_dict['performance'][name] = {}
         result_dict['performance'][name]['mean'] = np.mean(target)
@@ -114,9 +117,10 @@ def analyze_run(wandb_runid, assign_new_wandb_id=False, answer_fractions_mode='d
         logging_names = ['', '_UNANSWERABLE']
 
         # Check if we have additional predictions for this measure.
-        if measure_name in (u_m := results_old['alt_validation_is_false']):
-            validation_is_falses.append(u_m[measure_name])
-            logging_names.append(f'_max_from_{measure_name}')
+        if 'alt_validation_is_false' in results_old:
+            if measure_name in (u_m := results_old['alt_validation_is_false']):
+                validation_is_falses.append(u_m[measure_name])
+                logging_names.append(f'_max_from_{measure_name}')
 
         # Iterate over predictions of 'falseness' or 'answerability'.
         for validation_is_false, logging_name in zip(validation_is_falses, logging_names):

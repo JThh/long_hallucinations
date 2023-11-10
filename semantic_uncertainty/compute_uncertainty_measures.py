@@ -83,7 +83,7 @@ def main(args):
 
         is_ood_eval = True  # pylint: disable=invalid-name
         api = wandb.Api()
-        old_run_train = api.run(f'{args.restore_entity_train}/uncertainty/{args.train_wandb_runid}')
+        old_run_train = api.run(f'{args.restore_entity_train}/semantic_uncertainty/{args.train_wandb_runid}')
         filename = 'train_generations.pkl'
         old_run_train.file(filename).download(
             replace=True, exist_ok=False, root=wandb.run.dir)
@@ -100,20 +100,21 @@ def main(args):
 
     wandb.config.update({"is_ood_eval": is_ood_eval}, allow_val_change=True)
 
-    logging.info('Beginning loading for entailment model.')
-    if args.entailment_model == 'deberta':
-        entailment_model = EntailmentDeberta()
-    elif args.entailment_model == 'gpt-4':
-        entailment_model = EntailmentGPT4(args.entailment_cache_id, args.entailment_cache_only)
-    elif args.entailment_model == 'gpt-3.5':
-        entailment_model = EntailmentGPT35(args.entailment_cache_id, args.entailment_cache_only)
-    elif args.entailment_model == 'gpt-4-turbo':
-        entailment_model = EntailmentGPT4Turbo(args.entailment_cache_id, args.entailment_cache_only)
-    elif 'llama' in args.entailment_model.lower():
-        entailment_model = EntailmentLlama(args.entailment_cache_id, args.entailment_cache_only, args.entailment_model)
-    else:
-        raise ValueError
-    logging.info('Entailment model loading complete.')
+    if args.compute_predictive_entropy:
+        logging.info('Beginning loading for entailment model.')
+        if args.entailment_model == 'deberta':
+            entailment_model = EntailmentDeberta()
+        elif args.entailment_model == 'gpt-4':
+            entailment_model = EntailmentGPT4(args.entailment_cache_id, args.entailment_cache_only)
+        elif args.entailment_model == 'gpt-3.5':
+            entailment_model = EntailmentGPT35(args.entailment_cache_id, args.entailment_cache_only)
+        elif args.entailment_model == 'gpt-4-turbo':
+            entailment_model = EntailmentGPT4Turbo(args.entailment_cache_id, args.entailment_cache_only)
+        elif 'llama' in args.entailment_model.lower():
+            entailment_model = EntailmentLlama(args.entailment_cache_id, args.entailment_cache_only, args.entailment_model)
+        else:
+            raise ValueError
+        logging.info('Entailment model loading complete.')
 
     if args.compute_p_true_in_compute_stage:
         old_exp = restore(EXP_DETAILS)
@@ -320,11 +321,13 @@ def main(args):
         logging.info('Unanswerable prop on p_ik training: %f', np.mean(train_unanswerable))
 
     if args.compute_p_ik:
+        logging.info('Starting training p_ik on train embeddings.')
         # Train classifier of correct/incorrect.
         p_ik_predictions = get_p_ik(
             train_embeddings=train_embeddings, is_false=train_is_false,
             eval_embeddings=validation_embeddings, eval_is_false=validation_is_false)
         result_dict['uncertainty_measures']['p_ik'] = p_ik_predictions
+        logging.info('Finished training p_ik on train embeddings.')
 
     if args.compute_p_ik_answerable:
         # Train classifier of answerable/unanswerable:
@@ -340,7 +343,8 @@ def main(args):
     # write the dictionary to a pickle file
     utils.save(result_dict, 'uncertainty_measures.pkl')
 
-    entailment_model.save_prediction_cache()
+    if args.compute_predictive_entropy:
+        entailment_model.save_prediction_cache()
 
     if args.analyze_run:
         logging.info(50 * '#X')
