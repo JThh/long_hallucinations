@@ -30,6 +30,7 @@ class OpenAIModel(BaseModel):
             self.use_oai_stop = False
         else:
             self.use_oai_stop = True
+
         self.encoding = tiktoken.encoding_for_model(self.model_name)
 
     def num_tokens_from_string(self, string: str) -> int:

@@ -9,6 +9,7 @@ from evaluate import load
 
 from uncertainty.models.huggingface_models import HuggingfaceModel
 from uncertainty.models.oai_models import OpenAIModel
+from uncertainty.utils import openai as oai
 
 BRIEF_PROMPTS = {
     'default': "Answer the following question as briefly as possible.\n",
@@ -43,7 +44,7 @@ def get_parser(stages=['generate', 'compute']):
             help="Dataset to use to assemble few-shot prompt, p_true prompt, and train p_ik.")
         parser.add_argument(
             "--metric", type=str, default="squad",
-            choices=['squad', 'llm'],
+            choices=['squad', 'llm', 'llm_gpt-3.5'],
             help="Metric to assign accuracy to generations.")
         parser.add_argument(
             "--num_samples", type=int, default=200,
@@ -199,7 +200,7 @@ def check_for_clarification_request(answer):
     return is_clarification_request
 
 
-def llm_metric(predicted_answer, example, model):
+def model_based_metric(predicted_answer, example, model):
     correct_answers = [answer for answer in example['answers']['text']]
 
     prompt = f'We are assessing the quality of answers to the following question: {example["question"]}\n'
@@ -217,7 +218,10 @@ def llm_metric(predicted_answer, example, model):
 
     prompt += " Respond only with yes or no.\nResponse:"
 
-    predicted_answer, _, _ = model.predict(prompt, 0.01)
+    if 'gpt' in model.model_name.lower():
+        predicted_answer = model.predict(prompt, 0.01)
+    else:
+        predicted_answer, _, _ = model.predict(prompt, 0.01)
 
     if 'yes' in predicted_answer.lower():
         return 1.0
@@ -233,6 +237,30 @@ def llm_metric(predicted_answer, example, model):
 
         logging.warning('Answer neither no nor yes. Defaulting to no!')
         return 0.0
+
+
+def llm_metric(predicted_answer, example, model):
+    return model_based_metric(predicted_answer, example, model)
+
+
+def get_gpt_metric(metric_name):
+
+    model_name = '_'.join(metric_name.split('_')[1:])
+
+    class EntailmentGPT():
+        def __init__(self, model_name):
+            self.model_name = model_name
+
+        def predict(self, prompt, temperature):
+            return oai.predict(prompt, temperature, model=self.model_name)
+
+    gpt_model = EntailmentGPT(model_name)
+
+    def gpt_metric(predicted_answer, example, model):
+        del model
+        return model_based_metric(predicted_answer, example, gpt_model)
+
+    return gpt_metric
 
 
 def get_reference(example):
@@ -290,10 +318,17 @@ def get_metric(metric):
                 references=[get_reference(example)])
             return 1.0 if (results['f1'] >= 50.0) else 0.0
 
+    # this reuses the globally active model
     elif metric == 'llm':
         metric = llm_metric
+
+    # this reuses the globally active model
+    elif metric == 'llm_gpt-3.5':
+        metric = get_gpt_metric(metric)
+
     else:
         raise ValueError
+
     return metric
 
 
