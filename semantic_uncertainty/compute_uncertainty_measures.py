@@ -156,6 +156,10 @@ def main(args):
         logging.info('p_true_few_shot_prompt: %s', p_true_few_shot_prompt)
         logging.info(80*'#')
 
+    if args.recompute_accuracy:
+        logging.warning('Recompute accuracy enabled. This does not apply to precomputed p_true!')
+        metric = utils.get_metric(args.metric)
+
     result_dict_pickle = restore('uncertainty_measures.pkl')
     with open(result_dict_pickle.name, "rb") as infile:
         result_dict = pickle.load(infile)
@@ -188,10 +192,20 @@ def main(args):
         else:
             responses = [fr[0] for fr in full_responses]
 
-        validation_answerable.append(is_answerable(example))
+        if args.recompute_accuracy:
+            logging.info('Recomputing accuracy!')
+            if is_answerable(example):
+                acc = metric(most_likely_answer['response'], example, None)
+            else:
+                acc = 0.0  # pylint: disable=invalid-name
+            validation_is_true.append(acc)
+            logging.info('REcomputed accuracy!')
 
+        else:
+            validation_is_true.append(most_likely_answer['accuracy'])
+
+        validation_answerable.append(is_answerable(example))
         validation_embeddings.append(most_likely_answer['embedding'])
-        validation_is_true.append(most_likely_answer['accuracy'])
         logging.info('validation_is_true: %f', validation_is_true[-1])
 
         if args.compute_predictive_entropy:

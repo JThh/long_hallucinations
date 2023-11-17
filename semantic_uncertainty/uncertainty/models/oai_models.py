@@ -9,7 +9,7 @@ from uncertainty.models.base_model import BaseModel
 import numpy as np
 import logging
 
-openai.api_key = os.environ["OPENAI_API_KEY"]
+# openai.api_key = os.environ["OPENAI_API_KEY_OX"]
 
 from uncertainty.models.base_model import STOP_SEQUENCES
 

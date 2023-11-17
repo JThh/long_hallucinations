@@ -22,6 +22,10 @@ def get_parser(stages=['generate', 'compute']):
         "--debug", action=argparse.BooleanOptionalAction, default=False,
         help="Keep default wandb clean.")
     parser.add_argument('--entity', type=str, default='goatml')
+    parser.add_argument(
+        "--metric", type=str, default="squad",
+        choices=['squad', 'llm', 'llm_gpt-3.5'],
+        help="Metric to assign accuracy to generations.")
 
     if 'generate' in stages:
         parser.add_argument(
@@ -42,10 +46,6 @@ def get_parser(stages=['generate', 'compute']):
             "--ood_train_dataset", type=str, default=None,
             choices=['trivia_qa', 'squad', 'med_qa', 'bioasq', 'record'],
             help="Dataset to use to assemble few-shot prompt, p_true prompt, and train p_ik.")
-        parser.add_argument(
-            "--metric", type=str, default="squad",
-            choices=['squad', 'llm', 'llm_gpt-3.5'],
-            help="Metric to assign accuracy to generations.")
         parser.add_argument(
             "--num_samples", type=int, default=200,
             help="Number of samples to use")
@@ -102,6 +102,8 @@ def get_parser(stages=['generate', 'compute']):
             help='Exclude unanswerable questions.')
 
     if 'compute' in stages:
+        parser.add_argument('--recompute_accuracy',
+                            default=False, action=argparse.BooleanOptionalAction)
         parser.add_argument('--eval_wandb_runid', type=str,
                             help='wandb run id of the dataset to evaluate on')
         parser.add_argument('--train_wandb_runid', type=str, default=None,
@@ -201,7 +203,12 @@ def check_for_clarification_request(answer):
 
 
 def model_based_metric(predicted_answer, example, model):
-    correct_answers = [answer for answer in example['answers']['text']]
+    if 'answers' in example:
+        correct_answers = example['answers']['text']
+    elif 'reference' in example:
+        correct_answers = example['reference']['answers']['text']
+    else:
+        raise ValueError
 
     prompt = f'We are assessing the quality of answers to the following question: {example["question"]}\n'
     if len(correct_answers) == 1:

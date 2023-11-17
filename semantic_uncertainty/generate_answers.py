@@ -178,6 +178,8 @@ def main(args):
                 # Assemble `prediction` and `reference` for squad_metric.compute().
 
                 # Only compute accuracy if question is answerable.
+                # TODO: We can also move this to low-temperature generation only!! (Now that computing accuracy is expensive!)
+                # --> This means we cannot compute 'max_from' accuracies anymore, but this might be worth it!
                 if correct_answer:
                     acc = metric(predicted_answer, example, model)
                 else:
