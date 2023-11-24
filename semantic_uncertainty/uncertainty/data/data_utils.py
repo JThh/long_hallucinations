@@ -6,7 +6,7 @@ import json
 import datasets
 
 
-def load_ds(dataset_name, add_options=None):
+def load_ds(dataset_name, seed, add_options=None):
     """Load dataset."""
     user = os.environ['USER']
     # user = 'loruhn'
@@ -19,7 +19,7 @@ def load_ds(dataset_name, add_options=None):
 
     elif dataset_name == "trivia_qa":
         dataset = datasets.load_dataset('TimoImhof/TriviaQA-in-SQuAD-format')['unmodified']
-        dataset = dataset.train_test_split(test_size=0.2)
+        dataset = dataset.train_test_split(test_size=0.2, seed=seed)
         train_dataset = dataset['train']
         validation_dataset = dataset['test']
 
@@ -103,7 +103,7 @@ def load_ds(dataset_name, add_options=None):
         dataset = datasets.Dataset.from_dict(dataset_dict)
 
         # split into training and validation set
-        dataset = dataset.train_test_split(test_size=0.8)
+        dataset = dataset.train_test_split(test_size=0.8, seed=seed)
         train_dataset = dataset['train']
         validation_dataset = dataset['test']
 

@@ -126,7 +126,8 @@ def main(args):
         else:
             pt_model = utils.init_model(old_exp['args'])
         pt_train_dataset, pt_validation_dataset = load_ds(
-            old_exp['args'].dataset, add_options=old_exp['args'].use_mc_options)
+            old_exp['args'].dataset, add_options=old_exp['args'].use_mc_options,
+            seed=args.random_seed)
 
         # Reduce num generations used in p_true if needed!
         if not args.use_all_generations:

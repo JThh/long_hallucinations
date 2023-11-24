@@ -22,9 +22,10 @@ def get_parser(stages=['generate', 'compute']):
         "--debug", action=argparse.BooleanOptionalAction, default=False,
         help="Keep default wandb clean.")
     parser.add_argument('--entity', type=str, default='goatml')
+    parser.add_argument('--random_seed', type=int, default=10)
     parser.add_argument(
         "--metric", type=str, default="squad",
-        choices=['squad', 'llm', 'llm_gpt-3.5'],
+        choices=['squad', 'llm', 'llm_gpt-3.5', 'llm_gpt-4'],
         help="Metric to assign accuracy to generations.")
 
     if 'generate' in stages:
@@ -332,7 +333,8 @@ def get_metric(metric):
     # this reuses the globally active model
     elif metric == 'llm_gpt-3.5':
         metric = get_gpt_metric(metric)
-
+    elif metric == 'llm_gpt-4':
+        metric = get_gpt_metric(metric)
     else:
         raise ValueError
 

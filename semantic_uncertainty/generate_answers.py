@@ -20,13 +20,13 @@ from compute_uncertainty_measures import main as main_compute
 
 
 utils.setup_logger()
-random.seed(10)
 # Set up OpenAI API credentials
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
 
 def main(args):
     experiment_details = {'args': args}
+    random.seed(args.random_seed)
 
     # Implement
     user = os.environ['USER']
@@ -46,7 +46,7 @@ def main(args):
     metric = utils.get_metric(args.metric)
 
     train_dataset, validation_dataset = load_ds(
-        args.dataset, add_options=args.use_mc_options)
+        args.dataset, add_options=args.use_mc_options, seed=args.random_seed)
     if args.ood_train_dataset is not None:
         logging.warning(
             'Using OOD dataset %s to construct few-shot prompts and train p_ik.',

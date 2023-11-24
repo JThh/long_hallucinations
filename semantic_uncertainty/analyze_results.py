@@ -53,7 +53,7 @@ def analyze_run(wandb_runid, assign_new_wandb_id=False, answer_fractions_mode='d
 
     # Set up evaluation metrics
     if answer_fractions_mode == 'default':
-        answer_fractions = [0.8, 0.9, 0.95]
+        answer_fractions = [0.8, 0.9, 0.95, 1.0]
     elif answer_fractions_mode == 'finegrained':
         answer_fractions = np.linspace(0, 1, 20+1)
     else:

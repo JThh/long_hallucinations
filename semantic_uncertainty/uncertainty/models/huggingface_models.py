@@ -286,8 +286,19 @@ class HuggingfaceModel(BaseModel):
         # # P_IK wants last state of input. OR DOES IT? DISABLE FOR NOW?
         # # First access states for input
         # last_input = hidden[0]
-        # First access states for last token generation before stop token.and
-        last_input = hidden[n_generated - 1]
+        # First access states for last token generation before stop token.
+        if len(hidden) == 1:
+            logging.warning(
+                'Taking first and only generation for hidden! '
+                'n_generated: %d, n_input_token: %d, token_stop_index %d, '
+                'last_token: %s, generation was: %s',
+                n_generated, n_input_token, token_stop_index,
+                self.tokenizer.decode(outputs['sequences'][0][-1]),
+                full_answer,
+                )
+            last_input = hidden[0]
+        else:
+            last_input = hidden[n_generated - 1]
         # Then access last layer for input
         last_layer = last_input[-1]
         # Then access last token in input.
@@ -302,7 +313,11 @@ class HuggingfaceModel(BaseModel):
             outputs.sequences, outputs.scores, normalize_logits=True)
         # transition_scores[0] only contains the scores for the first generated tokens.
         log_likelihoods = [score.item() for score in transition_scores[0]]
-        log_likelihoods = log_likelihoods[:n_generated]
+        if len(log_likelihoods) == 1:
+            logging.warning('Taking first and only generation for log likelihood!')
+            log_likelihoods = log_likelihoods
+        else:
+            log_likelihoods = log_likelihoods[:n_generated]
 
         # For debugging purposes:
         # Can compare self.tokenizer.encode(sliced_answer) to len(log_likelihoods).
