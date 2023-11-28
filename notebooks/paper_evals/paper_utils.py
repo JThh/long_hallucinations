@@ -7,6 +7,8 @@ from matplotlib import pyplot as plt
 import pandas as pd
 import numpy as np
 
+from pprint import pprint
+from deepdiff import DeepDiff
 
 from copy import deepcopy
 import seaborn as sns
@@ -116,3 +118,122 @@ def restore_file(wandb_id, filenames=['wandb-summary.json', 'config.yaml']):
             raise
 
     return out
+
+
+def wandb_restore(wandb_run, filename):
+    files_dir = 'tmp_wandb/'
+    os.system(f'rm -rf {files_dir}')
+    os.system(f'mkdir -p {files_dir}')
+
+    run = api.run(wandb_run)
+    run.file(filename).download(
+        root=files_dir, replace=True, exist_ok=False)
+    with open(f'{files_dir}/{filename}', 'rb') as f:
+        out = pickle.load(f)
+    return out, run.config
+
+
+
+def dict_of_dfs_to_df(dictionary, key_name='wandbid'):
+
+    keys = list(dictionary.keys())
+
+    df = pd.DataFrame(dictionary[keys[0]])
+    df[key_name] = keys[0]
+    
+    for key in keys[1:]:
+        tmp = pd.DataFrame(dictionary[key])
+        tmp[key_name] = key
+        
+        df = pd.concat([df, tmp])
+    return df
+
+
+def plot_grouped(plot_df, metric, x=None, hue='method', figsize=(10, 8)):
+    if x is None:
+        x = uniq_name
+    fig, ax = plt.subplots(1, 1, figsize=figsize, sharey=True, dpi=100)
+
+    plot_df = plot_df.sort_values([hue, x], ascending=True)
+    plot_df = plot_df.fillna(0)
+    plot_df[hue] = plot_df[hue].map(str)
+    
+    g1 = sns.barplot(x=x, y='means', hue=hue, data=plot_df, ax=ax)
+    g2 = sns.barplot(x=x, y='low', hue=hue, data=plot_df, ax=ax, alpha=.5, edgecolor='lightgrey', fill=False, legend=False)
+    g2 = sns.barplot(x=x, y='high', hue=hue, data=plot_df, ax=ax, alpha=.5, edgecolor='lightgrey', fill=False, legend=False)
+
+    ax.set_xticklabels(ax.get_xticklabels(), rotation=90);
+    ax.legend(loc=(1, 0.25), title=hue)
+    ax.set_ylabel(metric)
+
+
+def colorize(text, color=0):
+    i2c = {i: f"\x1b[{a}" for i, a in enumerate([
+    '1m', '31m', '33m', '34m', '35m', '36m', '37m', '38m'])}
+    r = "\x1b[0m"
+
+    return i2c[color] + text + r
+
+
+def get_perf_df(runs, all_results):
+    perfdf = {}
+    for wandb_id, run_name in runs.items():
+        results = all_results[wandb_id]    
+        perfdf[wandb_id] = get_perfs(results)
+    
+    runids = list(perfdf.keys())
+    tmp = pd.DataFrame(perfdf[runids[0]])
+    tmp['run'] = runs[runids[0]]
+    
+    for runid in runids[1:]:
+        tmp2 = pd.DataFrame(perfdf[runid])
+        tmp2['run'] = runs[runid]
+        
+        tmp = pd.concat([tmp, tmp2])
+    
+    perfdf = tmp.reset_index()
+    
+    tmp = perfdf.set_index('method').loc['accuracy']
+    tmp['model'] = tmp.run.map(lambda x: '-'.join(x.split('-')[:1]))
+    tmp['dataset'] = tmp.run.map(lambda x: '-'.join(x.split('-')[1:]))
+    display(tmp.pivot(columns='model', index='dataset', values='means'))
+
+    pdfs = {}
+    for wandb_id in runs:
+        results = all_results[wandb_id]
+        pdfs[wandb_id] = get_uncertainty_df(results)
+    
+    runids = list(pdfs.keys())
+    
+    tmp = pd.DataFrame(pdfs[runids[0]])
+    tmp['run'] = runs[runids[0]]
+    tmp['wandb_id'] = runids[0]
+    
+    for runid in runids[1:]:
+        tmp2 = pd.DataFrame(pdfs[runid])
+        tmp2['run'] = runs[runid]
+        tmp2['wandb_id'] = runid
+    
+        tmp = pd.concat([tmp, tmp2])
+    
+    all_runs = tmp.reset_index()
+
+    return perfdf, pdfs, all_runs
+
+
+
+def check_first_item(configs):
+    # Manually make sure they all operate on the same random split of the data by reading the logs
+    
+    for wandbid, config in configs.items():
+        slurmid = api.run(f'goatml/semantic_uncertainty/{wandbid}').notes.split(',')[0][len('slurm_id: '):]
+        first_item = os.system(f"grep -m 1 -A 10 'NEW ITEM' ../../log/*{slurmid}*")
+        try:
+            q_line = np.where(['Question:' in l for l in first_item])[0][0]
+            print(wandbid, slurmid, config['dataset']['value'], first_item[q_line + 1][28:])
+        except:
+            q_line = first_item
+            if wandbid == 'e0z3555u':
+                print(wandbid, slurmid, config['dataset']['value'], 'MANUAL: What act sets forth the functions of the Scottish Parliament?')
+            else:
+                print('Failure for', wandbid, slurmid)
