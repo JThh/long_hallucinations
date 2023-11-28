@@ -246,7 +246,21 @@ class HuggingfaceModel(BaseModel):
                     stop_at = len(answer) - len(stop)
                     sliced_answer = answer[:stop_at]
                     break
-            assert all([stop not in sliced_answer for stop in self.stop_sequences])
+            if not all([stop not in sliced_answer for stop in self.stop_sequences]):
+                error_msg = 'Error: Stop words not removed successfully!'
+                error_msg += f'Answer: >{answer}< '
+                error_msg += f'Sliced Answer: >{sliced_answer}<'
+                if 'falcon' not in self.model_name.lower():
+                    raise ValueError(error_msg)
+                else:
+                    # It's not the end of the world, but there's some difficulty
+                    # here with the falcon encoder, which has lots of ambiguities
+                    # around how to encode things. E.g. '\n', '\n\n', ' \n', '\n ',
+                    # and ' \n ' all have their own token. I think I would need
+                    # to add a callback to my stopping criterion, such that
+                    # I know which stop token I need to remove.
+                    # But even without this, I think really is not too terrible.
+                    logging.error(error_msg)
 
         # Remove whitespaces from answer (in particular from beginning.)
         sliced_answer = sliced_answer.strip()
@@ -297,6 +311,16 @@ class HuggingfaceModel(BaseModel):
                 full_answer,
                 )
             last_input = hidden[0]
+        elif (len(hidden) > n_generated - 1) and ('falcon' in self.model_name.lower()):
+            logging.error(
+                'Taking last state because n_generated is too large'
+                'n_generated: %d, n_input_token: %d, token_stop_index %d, '
+                'last_token: %s, generation was: %s, slice_answer: %s',
+                n_generated, n_input_token, token_stop_index,
+                self.tokenizer.decode(outputs['sequences'][0][-1]),
+                full_answer, sliced_answer
+                )
+            last_input = hidden[-1]
         else:
             last_input = hidden[n_generated - 1]
         # Then access last layer for input
@@ -348,8 +372,7 @@ class HuggingfaceModel(BaseModel):
         """Get the probability of the model anwering A (True) for the given input"""
 
         input_data += ' A'
-        tokenized_prompt_true = torch.tensor(self.tokenizer([input_data])['input_ids'], device='cpu')
-
+        tokenized_prompt_true = self.tokenizer(input_data, return_tensors='pt').to('cuda')['input_ids']
         # This computation of the negative log likelihoods follows this tutorial:
         #  https://huggingface.co/docs/transformers/perplexity
 

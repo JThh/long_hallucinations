@@ -36,7 +36,7 @@ def get_parser(stages=['generate', 'compute']):
             "--model_name", type=str, default="oai.code-davinci-002", help="Model name",
         )
         parser.add_argument(
-            "--model_max_new_tokens", type=int, default=25,
+            "--model_max_new_tokens", type=int, default=50,
             help="Max number of tokens generated.",
         )
         parser.add_argument(
@@ -48,7 +48,7 @@ def get_parser(stages=['generate', 'compute']):
             choices=['trivia_qa', 'squad', 'med_qa', 'bioasq', 'record'],
             help="Dataset to use to assemble few-shot prompt, p_true prompt, and train p_ik.")
         parser.add_argument(
-            "--num_samples", type=int, default=200,
+            "--num_samples", type=int, default=400,
             help="Number of samples to use")
         parser.add_argument(
             "--num_few_shot", type=int, default=5,
@@ -272,9 +272,11 @@ def get_gpt_metric(metric_name):
 
 
 def get_reference(example):
-    answer_starts = [answer_start for answer_start in example['answers']['answer_start']]
-    answers = [answer for answer in example['answers']['text']]
-    reference = {'answers': {'answer_start': answer_starts, 'text': answers}, 'id': example['id']}
+    if 'answers' not in example:
+        example = example['reference']
+    answers = example['answers']
+    answer_starts = answers.get('answer_start', [])
+    reference = {'answers': {'answer_start': answer_starts, 'text': answers['text']}, 'id': example['id']}
     return reference
 
 
@@ -320,7 +322,15 @@ def get_metric(metric):
         squad_metric = load("squad_v2")
 
         def metric(response, example, *args, **kwargs):
-            prediction = {'prediction_text': response, 'no_answer_probability': 0.0, 'id': example['id']}
+            # make recomputecompatible
+            if 'id' in example:
+                exid = example['id']
+            elif 'id' in example['reference']:
+                exid = example['reference']['id']
+            else:
+                raise ValueError
+
+            prediction = {'prediction_text': response, 'no_answer_probability': 0.0, 'id': exid}
             results = squad_metric.compute(
                 predictions=[prediction],
                 references=[get_reference(example)])

@@ -200,7 +200,7 @@ def main(args):
             else:
                 acc = 0.0  # pylint: disable=invalid-name
             validation_is_true.append(acc)
-            logging.info('REcomputed accuracy!')
+            logging.info('Recomputed accuracy!')
 
         else:
             validation_is_true.append(most_likely_answer['accuracy'])
