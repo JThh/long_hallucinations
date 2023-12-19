@@ -27,11 +27,14 @@ def get_parser(stages=['generate', 'compute']):
         "--metric", type=str, default="squad",
         choices=['squad', 'llm', 'llm_gpt-3.5', 'llm_gpt-4'],
         help="Metric to assign accuracy to generations.")
-
+    parser.add_argument(
+        "--compute_accuracy_at_all_temps",
+        action=argparse.BooleanOptionalAction, default=True,
+        help="Compute accuracy at all temperatures or only t<<1.")
+    parser.add_argument(
+        "--experiment_lot", type=str, default='Unnamed Experiment',
+        help="Keep default wandb clean.")
     if 'generate' in stages:
-        parser.add_argument(
-            "--experiment_lot", type=str, default='Unnamed Experiment',
-            help="Keep default wandb clean.")
         parser.add_argument(
             "--model_name", type=str, default="oai.code-davinci-002", help="Model name",
         )
@@ -41,7 +44,7 @@ def get_parser(stages=['generate', 'compute']):
         )
         parser.add_argument(
             "--dataset", type=str, default="record",
-            choices=['trivia_qa', 'squad', 'med_qa', 'bioasq', 'record'],
+            choices=['trivia_qa', 'squad', 'med_qa', 'bioasq', 'record', 'nq', 'svamp'],
             help="Dataset to use")
         parser.add_argument(
             "--ood_train_dataset", type=str, default=None,
@@ -282,7 +285,7 @@ def get_reference(example):
 
 def init_model(args):
     mn = args.model_name
-    if 'llama' in mn.lower() or 'falcon' in mn:
+    if 'llama' in mn.lower() or 'falcon' in mn or 'mistral' in mn.lower():
         model = HuggingfaceModel(
             mn, stop_sequences='default',
             max_new_tokens=args.model_max_new_tokens)

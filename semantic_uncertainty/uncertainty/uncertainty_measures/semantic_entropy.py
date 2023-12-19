@@ -43,9 +43,14 @@ class EntailmentDeberta(BaseEntailment):
         # check_implication('The weather is good and I like you', 'The weather is good') --> 2
         outputs = self.model(**inputs)
         logits = outputs.logits
-        largest_index = torch.argmax(F.softmax(logits, dim=1))  # pylint: disable=no-member
         # Deberta-mnli returns `neutral` and `entailment` classes at indices 1 and 2.
-        return largest_index.cpu().item()
+        largest_index = torch.argmax(F.softmax(logits, dim=1))  # pylint: disable=no-member
+        prediction = largest_index.cpu().item()
+        if os.environ.get('DEBERTA_FULL_LOG', False):
+            logging.info('Deberta Input: %s -> %s', text1, text2)
+            logging.info('Deberta Prediction: %s', prediction)
+
+        return prediction
 
 
 class EntailmentLLM(BaseEntailment):

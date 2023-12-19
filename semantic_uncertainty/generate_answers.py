@@ -53,7 +53,8 @@ def main(args):
             args.ood_train_dataset)
         # Get indices of answerable and unanswerable questions and construct prompt.
         train_dataset, _ = load_ds(args.ood_train_dataset, add_options=args.use_mc_options)
-    logging.info('Train dataset: %s', train_dataset)
+    if not isinstance(train_dataset, list):
+        logging.info('Train dataset: %s', train_dataset)
 
     # Get indices of answerable and unanswerable questions and construct prompt.
     answerable_indices, unanswerable_indices = utils.split_dataset(train_dataset)
@@ -180,7 +181,8 @@ def main(args):
                 # Only compute accuracy if question is answerable.
                 # TODO: We can also move this to low-temperature generation only!! (Now that computing accuracy is expensive!)
                 # --> This means we cannot compute 'max_from' accuracies anymore, but this might be worth it!
-                if correct_answer:
+                compute_acc = args.compute_accuracy_at_all_temps or (i == 0)
+                if correct_answer and compute_acc:
                     acc = metric(predicted_answer, example, model)
                 else:
                     acc = 0.0  # pylint: disable=invalid-name

@@ -156,6 +156,31 @@ class HuggingfaceModel(BaseModel):
             else:
                 raise ValueError
 
+        elif 'mistral' in model_name.lower():
+
+            if model_name.endswith('-8bit'):
+                kwargs = {'quantization_config': BitsAndBytesConfig(
+                    load_in_8bit=True,)}
+                model_name = model_name[:-len('-8bit')]
+            if model_name.endswith('-4bit'):
+                kwargs = {'quantization_config': BitsAndBytesConfig(
+                    load_in_4bit=True,)}
+                model_name = model_name[:-len('-8bit')]
+            else:
+                kwargs = {}
+
+            model_id = f'mistralai/{model_name}'
+            self.tokenizer = AutoTokenizer.from_pretrained(
+                model_id, device_map='auto', token_type_ids=None,
+                clean_up_tokenization_spaces=False)
+
+            self.model = AutoModelForCausalLM.from_pretrained(
+                model_id,
+                device_map='auto',
+                max_memory={0: '80GIB'},
+                **kwargs,
+            )
+
         elif 'falcon' in model_name:
             model_id = f'tiiuae/{model_name}'
             self.tokenizer = AutoTokenizer.from_pretrained(
@@ -188,7 +213,7 @@ class HuggingfaceModel(BaseModel):
         # Implement prediction.
         inputs = self.tokenizer(input_data, return_tensors="pt").to("cuda")
 
-        if 'llama' in self.model_name.lower() or 'falcon' in self.model_name:
+        if 'llama' in self.model_name.lower() or 'falcon' in self.model_name or 'mistral' in self.model_name.lower():
             if 'token_type_ids' in inputs:  # seems to have been updated
                 del inputs['token_type_ids']
             pad_token_id = self.tokenizer.eos_token_id
@@ -301,8 +326,10 @@ class HuggingfaceModel(BaseModel):
         # # First access states for input
         # last_input = hidden[0]
         # First access states for last token generation before stop token.
+        # model_fits = ('falcon' in self.model_name.lower()) or ('mistral' in self.model_name.lower())
         if len(hidden) == 1:
             logging.warning(
+
                 'Taking first and only generation for hidden! '
                 'n_generated: %d, n_input_token: %d, token_stop_index %d, '
                 'last_token: %s, generation was: %s',
@@ -311,7 +338,8 @@ class HuggingfaceModel(BaseModel):
                 full_answer,
                 )
             last_input = hidden[0]
-        elif (len(hidden) > n_generated - 1) and ('falcon' in self.model_name.lower()):
+        elif ((n_generated - 1) >= len(hidden)):
+            # if access idx is larger/equal
             logging.error(
                 'Taking last state because n_generated is too large'
                 'n_generated: %d, n_input_token: %d, token_stop_index %d, '

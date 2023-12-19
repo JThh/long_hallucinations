@@ -52,7 +52,7 @@ def main(args):
             # set the wandb project where this run will be logged
             project=project,
             dir=wandb_dir,
-            notes=f'slurm_id: {slurm_jobid}',
+            notes=f'slurm_id: {slurm_jobid}, experiment_lot: {args.experiment_lot}',
             # For convenience, keep any 'generate_answers' configs from old run,
             #  but overwrite the rest!
             # NOTE: This means any special configs affecting this script must be

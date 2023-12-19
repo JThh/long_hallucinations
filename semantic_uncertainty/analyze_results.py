@@ -22,13 +22,15 @@ result_dict = {}
 UNC_MEAS = 'uncertainty_measures.pkl'
 
 
-def init_wandb(wandb_runid, assign_new_wandb_id):
+def init_wandb(wandb_runid, assign_new_wandb_id, experiment_lot):
     '''Initialize wandb session.'''
     user = os.environ['USER']
+    slurm_jobid = os.getenv('SLURM_JOB_ID')
     kwargs = dict(
         entity='goatml',
         project='semantic_uncertainty',
         dir=f'/scratch-ssd/{user}/uncertainty',
+        notes=f'slurm_id: {slurm_jobid}, experiment_lot: {experiment_lot}',
     )
     if not assign_new_wandb_id:
         # Restore wandb session.
@@ -47,7 +49,7 @@ def init_wandb(wandb_runid, assign_new_wandb_id):
             replace=True, exist_ok=False, root=wandb.run.dir)
 
 
-def analyze_run(wandb_runid, assign_new_wandb_id=False, answer_fractions_mode='default'):
+def analyze_run(wandb_runid, assign_new_wandb_id=False, answer_fractions_mode='default', experiment_lot=None):
     '''Analyze the uncertainty measures for a given wandb run id.'''
     logging.info('Analyzing wandb_runid `%s`.', wandb_runid)
 
@@ -55,7 +57,7 @@ def analyze_run(wandb_runid, assign_new_wandb_id=False, answer_fractions_mode='d
     if answer_fractions_mode == 'default':
         answer_fractions = [0.8, 0.9, 0.95, 1.0]
     elif answer_fractions_mode == 'finegrained':
-        answer_fractions = np.linspace(0, 1, 20+1)
+        answer_fractions = [round(i, 3) for i in np.linspace(0, 1, 20+1)]
     else:
         raise ValueError
 
@@ -74,7 +76,7 @@ def analyze_run(wandb_runid, assign_new_wandb_id=False, answer_fractions_mode='d
             compatible_bootstrap]
 
     if wandb.run is None:
-        init_wandb(wandb_runid, assign_new_wandb_id=assign_new_wandb_id)
+        init_wandb(wandb_runid, assign_new_wandb_id=assign_new_wandb_id, experiment_lot=experiment_lot)
 
     elif wandb.run.id != wandb_runid:
         raise
@@ -168,6 +170,9 @@ if __name__ == '__main__':
     parser.add_argument('--assign_new_wandb_id', default=True,
                         action=argparse.BooleanOptionalAction)
     parser.add_argument('--answer_fractions_mode', type=str, default='default')
+    parser.add_argument(
+        "--experiment_lot", type=str, default='Unnamed Experiment',
+        help="Keep default wandb clean.")
 
     args, unknown = parser.parse_known_args()
     if unknown:
@@ -178,4 +183,4 @@ if __name__ == '__main__':
 
     for wid in wandb_runids:
         logging.info('Evaluating wandb_runid `%s`.', wid)
-        analyze_run(wid, args.assign_new_wandb_id, args.answer_fractions_mode)
+        analyze_run(wid, args.assign_new_wandb_id, args.answer_fractions_mode, experiment_lot=args.experiment_lot)
