@@ -1,6 +1,5 @@
 """Compute p_true uncertainty metric."""
 import logging
-import random
 from evaluate import load
 
 
@@ -8,15 +7,13 @@ squad_metric = load("squad_v2")
 
 
 def construct_few_shot_prompt(
-        *, model, dataset, indices, prompt, brief, brief_always, make_prompt, num_generations, metric):
+        *, model, dataset, indices, prompt, brief, brief_always, make_prompt,
+        num_generations, metric):
     """Construct few shot prompt for p_true uncertainty metric."""
 
     # Call model n_shots many times
     few_shot_prompt = []
-
-    # TODO: Why are we not using the context to construct the p_true few-shot prompt?
     all_responses = dict()
-
     for it, i in enumerate(indices):
         prompt_candidate = []
         example = dataset[i]
@@ -64,7 +61,7 @@ def construct_few_shot_prompt(
 
         prompt_len = len(model.tokenizer.encode(''.join(few_shot_prompt + prompt_candidate)))
         # At test time, get a maximum of `num_generations * model.token_limit` extra tokens
-        # 200 buffer for question and 'Possible Answer'
+        # 200 buffer for question and 'Possible Answer'.
         max_input_len = prompt_len + num_generations * model.max_new_tokens + 200
 
         if max_input_len < model.token_limit:
@@ -76,7 +73,9 @@ def construct_few_shot_prompt(
     return ''.join(few_shot_prompt), all_responses, it
 
 
-def calculate_p_true(model, question, most_probable_answer, brainstormed_answers, few_shot_prompt, hint=False):
+def calculate_p_true(
+        model, question, most_probable_answer, brainstormed_answers,
+        few_shot_prompt, hint=False):
     """Calculate p_true uncertainty metric."""
 
     if few_shot_prompt:

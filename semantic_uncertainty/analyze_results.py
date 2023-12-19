@@ -6,7 +6,6 @@ import os
 import pickle
 
 import numpy as np
-from sklearn.metrics import roc_curve, auc
 import wandb
 
 from uncertainty.utils import utils
@@ -56,7 +55,7 @@ def analyze_run(
     '''Analyze the uncertainty measures for a given wandb run id.'''
     logging.info('Analyzing wandb_runid `%s`.', wandb_runid)
 
-    # Set up evaluation metrics
+    # Set up evaluation metrics.
     if answer_fractions_mode == 'default':
         answer_fractions = [0.8, 0.9, 0.95, 1.0]
     elif answer_fractions_mode == 'finegrained':
@@ -92,7 +91,7 @@ def analyze_run(
 
     result_dict = {'performance': {}, 'uncertainty': {}}
 
-    # First: Compute Simple Accuracy metrics of the model predictions
+    # First: Compute Simple Accuracy metrics of the model predictions.
     all_accuracies = dict()
     if 'alt_validation_is_false' in results_old:
         all_accuracies.update({name: 1 - np.array(data) for name, data in results_old['alt_validation_is_false'].items()})
@@ -105,12 +104,12 @@ def analyze_run(
 
     rum = results_old['uncertainty_measures']
     if 'p_false' in rum and 'p_false_fixed' not in rum:
-        # restore log probs true: y = 1 - x --> x = 1 - y
-        # convert to probs --> np.exp(1 - y)
-        # conert to p_false --> 1- np.exp(1-y)
+        # Restore log probs true: y = 1 - x --> x = 1 - y.
+        # Convert to probs --> np.exp(1 - y).
+        # Convert to p_false --> 1 - np.exp(1 - y).
         rum['p_false_fixed'] = [1 - np.exp(1 - x) for x in rum['p_false']]
 
-    # Next: Uncertainty Measures
+    # Next: Uncertainty Measures.
     # Iterate through the dictionary and compute additional metrics for each measure.
     for measure_name, measure_values in rum.items():
         logging.info('Computing for uncertainty measure `%s`.', measure_name)
@@ -185,9 +184,7 @@ if __name__ == '__main__':
     if unknown:
         raise ValueError(f'Unkown args: {unknown}')
 
-    # Parse wandb run ids
     wandb_runids = args.wandb_runids
-
     for wid in wandb_runids:
         logging.info('Evaluating wandb_runid `%s`.', wid)
         analyze_run(

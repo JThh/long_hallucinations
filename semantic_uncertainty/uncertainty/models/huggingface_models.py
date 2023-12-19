@@ -19,7 +19,6 @@ from uncertainty.models.base_model import BaseModel
 from uncertainty.models.base_model import STOP_SEQUENCES
 
 
-
 class StoppingCriteriaSub(StoppingCriteria):
     """Stop generations when they match a particular text or token."""
     def __init__(self, stops, tokenizer, match_on='text', initial_length=None):
@@ -130,7 +129,6 @@ class HuggingfaceModel(BaseModel):
                     ignore_patterns=['pytorch_model.bin.index.json']
                 )
                 config = AutoConfig.from_pretrained(f"{base}/{model_name}")
-                # config.load_in_8bit = True
                 with accelerate.init_empty_weights():
                     self.model = AutoModelForCausalLM.from_config(config)
                 self.model.tie_weights()
@@ -149,7 +147,6 @@ class HuggingfaceModel(BaseModel):
                 full_model_device_map = {f"model.{k}": v for k, v in device_map.items()}
                 full_model_device_map["lm_head"] = 0
 
-                # get snapshot folder
                 self.model = accelerate.load_checkpoint_and_dispatch(
                     self.model, path, device_map=full_model_device_map,
                     dtype='float16')
@@ -207,14 +204,14 @@ class HuggingfaceModel(BaseModel):
 
         # TODO @lorenz: Investigate this for clarify. Why are the inputs tuples sometimes?
         if isinstance(input_data, tuple):
-            logging.WARNING("INPUT IS A TUPLE. WHY?")
+            logging.WARNING("INPUT IS A TUPLE.")
             input_data = input_data[0]
 
         # Implement prediction.
         inputs = self.tokenizer(input_data, return_tensors="pt").to("cuda")
 
         if 'llama' in self.model_name.lower() or 'falcon' in self.model_name or 'mistral' in self.model_name.lower():
-            if 'token_type_ids' in inputs:  # seems to have been updated
+            if 'token_type_ids' in inputs:  # HF models seems has changed.
                 del inputs['token_type_ids']
             pad_token_id = self.tokenizer.eos_token_id
         else:
@@ -386,14 +383,7 @@ class HuggingfaceModel(BaseModel):
 
         if len(log_likelihoods) == 0:
             raise ValueError
-            # logging.warning(
-            #     (
-            #         'len(log_likelihoods) == 0 after answer slicing, take last '
-            #         'loglik instead.\n'
-            #         'Answer: \n""""\n%s\n"""\nSliced Answer:\n""""\n%s\n"""'
-            #     ),
-            #     answer, sliced_answer)
-            # log_likelihoods = [transition_scores[0][-1].item()]
+
         return sliced_answer, log_likelihoods, last_token_embedding
 
     def get_p_true(self, input_data):
@@ -401,11 +391,9 @@ class HuggingfaceModel(BaseModel):
 
         input_data += ' A'
         tokenized_prompt_true = self.tokenizer(input_data, return_tensors='pt').to('cuda')['input_ids']
-        # This computation of the negative log likelihoods follows this tutorial:
-        #  https://huggingface.co/docs/transformers/perplexity
 
         target_ids_true = tokenized_prompt_true.clone()
-        # Set all target_ids except the last one to -1.
+        # Set all target_ids except the last one to -100.
         target_ids_true[0, :-1] = -100
 
         with torch.no_grad():
@@ -420,20 +408,19 @@ class HuggingfaceModel(BaseModel):
 
         tokenized_data = self.tokenizer(input_data, return_tensors='pt').to('cuda')['input_ids']
 
-        # This computation of the negative log likelihoods follows this tutorial:
-        #  https://huggingface.co/docs/transformers/perplexity
-
         with torch.no_grad():
             model_output_true = self.model(tokenized_data, labels=tokenized_data)
 
         perplexity = - model_output_true.loss.item()
 
-        # skip first token. (will be start token for llama anyways)
-        # output : B A C
-        # input  : A B C
-        # I've checked that the above implementation is equivalent to what I think is reasonable, which is:
+        # The computation of the negative log likelihoods follows this tutorial:
+        # https://huggingface.co/docs/transformers/perplexity.
+        # I've checked that the above implementation is equivalent to the correct computation, i.e.:
         # -torch.mean(torch.tensor([
         #     torch.nn.functional.log_softmax(output, 0)[token] for output, token
         #     in zip(model_output_true['logits'][0], tokenized_data[0][1:])]))
+        # Skip first token (will be start token anyways.)
+        # output : B A C
+        # input  : A B C
 
         return perplexity

@@ -1,5 +1,4 @@
 """Compute uncertainty measures after generating answers."""
-import argparse
 from collections import defaultdict
 import logging
 import os
@@ -7,10 +6,7 @@ import pickle
 import numpy as np
 import wandb
 
-import torch
-
 from analyze_results import analyze_run
-
 from uncertainty.data.data_utils import load_ds
 from uncertainty.uncertainty_measures.p_ik import get_p_ik
 from uncertainty.uncertainty_measures.semantic_entropy import get_semantic_ids
@@ -25,7 +21,6 @@ from uncertainty.uncertainty_measures.semantic_entropy import EntailmentGPT35
 from uncertainty.uncertainty_measures.semantic_entropy import EntailmentGPT4Turbo
 from uncertainty.uncertainty_measures.semantic_entropy import EntailmentLlama
 from uncertainty.uncertainty_measures import p_true as p_true_utils
-
 from uncertainty.utils import utils
 
 
@@ -50,12 +45,11 @@ def main(args):
         old_run = api.run(f'{args.restore_entity_eval}/{project}/{args.eval_wandb_runid}')
         wandb.init(
             entity=args.entity,
-            # set the wandb project where this run will be logged
             project=project,
             dir=wandb_dir,
             notes=f'slurm_id: {slurm_jobid}, experiment_lot: {args.experiment_lot}',
             # For convenience, keep any 'generate_answers' configs from old run,
-            #  but overwrite the rest!
+            # but overwrite the rest!
             # NOTE: This means any special configs affecting this script must be
             # called again when calling this script!
             config={**old_run.config, **args.__dict__},
@@ -118,17 +112,20 @@ def main(args):
         logging.info('Entailment model loading complete.')
 
     if args.compute_p_true_in_compute_stage:
+        # This is usually not called.
         old_exp = restore(EXP_DETAILS)
         with open(old_exp.name, "rb") as infile:
             old_exp = pickle.load(infile)
-        # TODO: Could also share model between entailment and p_true when appropriate
+
         if args.reuse_entailment_model:
             pt_model = entailment_model.model
         else:
             pt_model = utils.init_model(old_exp['args'])
+
         pt_train_dataset, pt_validation_dataset = load_ds(
             old_exp['args'].dataset, add_options=old_exp['args'].use_mc_options,
             seed=args.random_seed)
+        del pt_validation_dataset
 
         # Reduce num generations used in p_true if needed!
         if not args.use_all_generations:
@@ -146,9 +143,9 @@ def main(args):
             brief=old_exp['BRIEF'],
             brief_always=old_exp['args'].brief_always and old_exp['args'].enable_brief,
             make_prompt=utils.get_make_prompt(old_exp['args']),
-            # THIS WE WANT TO CHANGE!
             num_generations=num_gen,
             metric=utils.get_metric(old_exp['args'].metric))
+        del p_true_responses
         wandb.config.update(
             {'p_true_num_fewshot': len_p_true}, allow_val_change=True)
         wandb.log(dict(len_p_true=len_p_true))
@@ -159,6 +156,7 @@ def main(args):
         logging.info(80*'#')
 
     if args.recompute_accuracy:
+        # This is usually not enabled.
         logging.warning('Recompute accuracy enabled. This does not apply to precomputed p_true!')
         metric = utils.get_metric(args.metric)
 
@@ -295,7 +293,6 @@ def main(args):
             logging.info(log_str, semantic_ids, log_liks_agg, entropies_fmt)
 
         if args.compute_p_true_in_compute_stage:
-            # Already compute p_true here. Avoid heavy lifting in downstream scripts.
             p_true = p_true_utils.calculate_p_true(
                 pt_model, question, most_likely_answer['response'],
                 responses, p_true_few_shot_prompt,
@@ -325,7 +322,7 @@ def main(args):
         result_dict['alt_validation_is_false'] = {k: [1 - vi for vi in v] for k, v in accuracies.items()}
 
     if args.compute_p_ik or args.compute_p_ik_answerable:
-        # Assemble training data for classifier.
+        # Assemble training data for embedding classification.
         train_is_true, train_embeddings, train_answerable = [], [], []
         for tid in train_generations:
             most_likely_answer = train_generations[tid]['most_likely_answer']
@@ -356,7 +353,6 @@ def main(args):
         result_dict['uncertainty_measures']['p_false'] = [1 - p for p in p_trues]
         result_dict['uncertainty_measures']['p_false_fixed'] = [1 - np.exp(p) for p in p_trues]
 
-    # write the dictionary to a pickle file
     utils.save(result_dict, 'uncertainty_measures.pkl')
 
     if args.compute_predictive_entropy:

@@ -1,4 +1,5 @@
 """Utility functions."""
+import os
 import logging
 import argparse
 import pickle
@@ -17,11 +18,13 @@ BRIEF_PROMPTS = {
 
 
 def get_parser(stages=['generate', 'compute']):
+    entity = os.getenv('WANDB_SEM_UNC_ENTITY', os.getenv('USER'))
+
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--debug", action=argparse.BooleanOptionalAction, default=False,
         help="Keep default wandb clean.")
-    parser.add_argument('--entity', type=str, default='goatml')
+    parser.add_argument('--entity', type=str, default=entity)
     parser.add_argument('--random_seed', type=int, default=10)
     parser.add_argument(
         "--metric", type=str, default="squad",
@@ -125,8 +128,8 @@ def get_parser(stages=['generate', 'compute']):
                             action=argparse.BooleanOptionalAction)
         parser.add_argument('--assign_new_wandb_id', default=True,
                             action=argparse.BooleanOptionalAction)
-        parser.add_argument('--restore_entity_eval', type=str, default='goatml')
-        parser.add_argument('--restore_entity_train', type=str, default='goatml')
+        parser.add_argument('--restore_entity_eval', type=str, default=entity)
+        parser.add_argument('--restore_entity_train', type=str, default=entity)
         parser.add_argument('--condition_on_question',
                             default=True, action=argparse.BooleanOptionalAction)
         parser.add_argument('--strict_entailment',
@@ -192,18 +195,6 @@ def split_dataset(dataset):
         set(unanswerable_indices) == set(answerable_indices)
 
     return answerable_indices, unanswerable_indices
-
-
-def check_for_clarification_request(answer):
-    """Check if answer is a clarification request."""
-
-    list_of_clarification_requests_indicators = ['?', 'please', 'clarify',
-                                                 'sorry ', 'I don\'t understand', 'I can\'t', 'there is no one']
-    is_clarification_request = 0.0
-    for indicator in list_of_clarification_requests_indicators:
-        if indicator in answer:
-            is_clarification_request = 1.0
-    return is_clarification_request
 
 
 def model_based_metric(predicted_answer, example, model):

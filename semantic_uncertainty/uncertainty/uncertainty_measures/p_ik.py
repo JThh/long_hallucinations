@@ -62,7 +62,7 @@ def get_p_ik(train_embeddings, is_false, eval_embeddings=None, eval_is_false=Non
             f'auroc_p_ik_{suffix}': auroc_p_ik_train}
         metrics.update(split_metrics)
 
-        # Plotting
+        # Plotting.
         probabilities_of_false_points = y_pred_proba[:, 1][np.array(y_true) == 1.0]
         probabilities_of_true_points = y_pred_proba[:, 1][np.array(y_true) == 0.0]
         ax.hist(probabilities_of_false_points, bins=20, alpha=0.5, label='False')
@@ -72,7 +72,6 @@ def get_p_ik(train_embeddings, is_false, eval_embeddings=None, eval_is_false=Non
         ax.set_title(f'Set: {suffix} \n {fmt}')
 
     # Plotting.
-    # TODO: Add this plot to wandb!
     axes[0].set_ylabel('Counts')
     axes[1].set_xlabel('Predicted Probabilities')
     os.system('mkdir -p figures')

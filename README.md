@@ -56,11 +56,18 @@ We do not support execution without wandb.
 Our experiments rely on Hugging Face for all LLM models and most of the datasets.
 It may be necessary to set the environment variable `HUGGING_FACE_HUB_TOKEN` to the token associated with your Hugging Face account.
 Further, it may be necessary to [apply for access](https://huggingface.co/meta-llama) to use the official repository of Meta's LLaMa-2 models.
+We recommend setting the `XDG_CACHE_HOME` environment variable to a directory on a device with sufficient space, as models and datasets will be downloaded to this folder.
+
 
 Our experiments with sentence-length generation use GPT models from the OpenAI API.
 Please set the environment variable `OPENAI_API_KEY` to your OpenAI API key in order to use these models.
 Note that OpenAI charges a cost per input token and per generated token.
 Costs for reproducing our results vary depending on experiment configuration, but, without any guarantee, should lie somewhere between 10 and 100 USD.
+
+
+For almost all tasks, the dataset is downloaded automatically from HuggingFace Datasets library upon first execution.
+Only for bioasq, data needs to be [downloaded](http://participants-area.bioasq.org/datasets) manually and put in the following directory `$SCRATCH_DIR/$USER/uncertainty`, where `$SCRATCH_DIR` defaults to `.`.
+
 
 
 ## Demo
@@ -117,3 +124,5 @@ where
 * `$DATASET` is one of `[trivia_qa, squad, med_qa, bioasq, record, nq, svamp],
 * and `$EXTRA_CFG` is empty for short-phrase generation and for sentence-length generation, `EXTRA_CFG=--num_few_shot=0 --model_max_new_tokens=100 --brief_prompt=chat --metric=llm_gpt-4 --entailment_model=gpt-3.5 --no-compute_accuracy_at_all_temps`.
 
+
+The results for any run can be obtained by passing their `wandb_id` to an evaluation notebook identical to the demonstration in `notebooks/example_evaluation.ipynb`.
