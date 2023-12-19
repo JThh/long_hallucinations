@@ -22,14 +22,15 @@ result_dict = {}
 UNC_MEAS = 'uncertainty_measures.pkl'
 
 
-def init_wandb(wandb_runid, assign_new_wandb_id, experiment_lot):
+def init_wandb(wandb_runid, assign_new_wandb_id, experiment_lot, entity):
     '''Initialize wandb session.'''
     user = os.environ['USER']
     slurm_jobid = os.getenv('SLURM_JOB_ID')
+    scratch_dir = os.getenv('SCRATCH_DIR', '.')
     kwargs = dict(
-        entity='goatml',
+        entity=entity,
         project='semantic_uncertainty',
-        dir=f'/scratch-ssd/{user}/uncertainty',
+        dir=f'{scratch_dir}/{user}/uncertainty',
         notes=f'slurm_id: {slurm_jobid}, experiment_lot: {experiment_lot}',
     )
     if not assign_new_wandb_id:
@@ -37,19 +38,21 @@ def init_wandb(wandb_runid, assign_new_wandb_id, experiment_lot):
         wandb.init(
             id=wandb_runid,
             resume=True,
-            **kwargs
-        )
+            **kwargs)
         wandb.restore(UNC_MEAS)
     else:
         api = wandb.Api()
         wandb.init(**kwargs)
 
-        old_run = api.run(f'goatml/semantic_uncertainty/{wandb_runid}')
+        old_run = api.run(f'{entity}/semantic_uncertainty/{wandb_runid}')
         old_run.file(UNC_MEAS).download(
             replace=True, exist_ok=False, root=wandb.run.dir)
 
 
-def analyze_run(wandb_runid, assign_new_wandb_id=False, answer_fractions_mode='default', experiment_lot=None):
+def analyze_run(
+        wandb_runid, assign_new_wandb_id=False, answer_fractions_mode='default',
+        experiment_lot=None, entity=None):
+
     '''Analyze the uncertainty measures for a given wandb run id.'''
     logging.info('Analyzing wandb_runid `%s`.', wandb_runid)
 
@@ -76,7 +79,9 @@ def analyze_run(wandb_runid, assign_new_wandb_id=False, answer_fractions_mode='d
             compatible_bootstrap]
 
     if wandb.run is None:
-        init_wandb(wandb_runid, assign_new_wandb_id=assign_new_wandb_id, experiment_lot=experiment_lot)
+        init_wandb(
+            wandb_runid, assign_new_wandb_id=assign_new_wandb_id,
+            experiment_lot=experiment_lot, entity=entity)
 
     elif wandb.run.id != wandb_runid:
         raise
@@ -173,6 +178,8 @@ if __name__ == '__main__':
     parser.add_argument(
         "--experiment_lot", type=str, default='Unnamed Experiment',
         help="Keep default wandb clean.")
+    parser.add_argument(
+        "--entity", type=str, help="Wandb entity.")
 
     args, unknown = parser.parse_known_args()
     if unknown:
@@ -183,4 +190,6 @@ if __name__ == '__main__':
 
     for wid in wandb_runids:
         logging.info('Evaluating wandb_runid `%s`.', wid)
-        analyze_run(wid, args.assign_new_wandb_id, args.answer_fractions_mode, experiment_lot=args.experiment_lot)
+        analyze_run(
+            wid, args.assign_new_wandb_id, args.answer_fractions_mode,
+            experiment_lot=args.experiment_lot, entity=args.entity)

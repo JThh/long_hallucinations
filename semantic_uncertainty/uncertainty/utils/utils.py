@@ -77,7 +77,7 @@ def get_parser(stages=['generate', 'compute']):
             action=argparse.BooleanOptionalAction,
             help="Get generations for training set?")
         parser.add_argument(
-            "--use_context", default=True,
+            "--use_context", default=False,
             action=argparse.BooleanOptionalAction,
             help="Get generations for training set?")
         parser.add_argument(

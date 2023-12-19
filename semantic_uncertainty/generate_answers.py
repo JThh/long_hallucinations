@@ -30,14 +30,15 @@ def main(args):
 
     # Implement
     user = os.environ['USER']
-    slurm_jobid = os.getenv('SLURM_JOB_ID')
-    if not os.path.exists(f"/scratch-ssd/{user}/uncertainty"):
-        os.makedirs(f"/scratch-ssd/{user}/uncertainty")
+    slurm_jobid = os.getenv('SLURM_JOB_ID', None)
+    scratch_dir = os.getenv('SCRATCH_DIR', '.')
+    if not os.path.exists(f"{scratch_dir}/{user}/uncertainty"):
+        os.makedirs(f"{scratch_dir}/{user}/uncertainty")
 
     wandb.init(
         entity=args.entity,
         project="semantic_uncertainty" if not args.debug else "semantic_uncertainty_debug",
-        dir=f"/scratch-ssd/{user}/uncertainty",
+        dir=f"{scratch_dir}/{user}/uncertainty",
         config=args,
         notes=f'slurm_id: {slurm_jobid}, experiment_lot: {args.experiment_lot}',
     )
