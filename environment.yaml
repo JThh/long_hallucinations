@@ -1,4 +1,4 @@
-name: llm
+name: semantic_uncertainty
 channels:
   - pytorch
   - nvidia
@@ -9,8 +9,8 @@ dependencies:
   - pytorch
   - torchvision
   - torchaudio
-  # 11.6 for clpc57, 11.7 for oat17
-  - pytorch-cuda=11.7
+  - pytorch-cuda=11.8
+  # - pytorch-cuda=11.7
   - numpy
   # - transformers
   - evaluate
@@ -39,3 +39,8 @@ dependencies:
     - bitsandbytes
     - nltk
     - tenacity
+    - sentencepiece
+    - safetensors
+# on clpc57, got error with model init: downgrade transformers
+# pip install transformers==4.30
+# did not work!
