@@ -66,7 +66,7 @@ def get_uncertainty_df(metrics):
         elif 'semantic_entropy' in x:
             return 'semantic_entropy'
         else:
-            raise
+            return x
     df['base_method'] = df.index.map(get_base_method)
     return df
 
@@ -149,12 +149,13 @@ def dict_of_dfs_to_df(dictionary, key_name='wandbid'):
     return df
 
 
-def plot_grouped(plot_df, metric, x=None, hue='method', figsize=(10, 8)):
+def plot_grouped(plot_df, metric, x=None, hue='method', figsize=(10, 8), with_sort=True):
     if x is None:
         x = uniq_name
     fig, ax = plt.subplots(1, 1, figsize=figsize, sharey=True, dpi=100)
 
-    plot_df = plot_df.sort_values([hue, x], ascending=True)
+    if with_sort:
+        plot_df = plot_df.sort_values([hue, x], ascending=True)
     plot_df = plot_df.fillna(0)
     plot_df[hue] = plot_df[hue].map(str)
     
@@ -227,7 +228,7 @@ def check_first_item(configs):
     
     for wandbid, config in configs.items():
         slurmid = api.run(f'goatml/semantic_uncertainty/{wandbid}').notes.split(',')[0][len('slurm_id: '):]
-        first_item = os.system(f"grep -m 1 -A 10 'NEW ITEM' ../../log/*{slurmid}*")
+        first_item = os.popen(f"grep -m 1 -A 10 'NEW ITEM' ../../log/*{slurmid}*").read().split('\n')
         try:
             q_line = np.where(['Question:' in l for l in first_item])[0][0]
             print(wandbid, slurmid, config['dataset']['value'], first_item[q_line + 1][28:])
@@ -237,3 +238,46 @@ def check_first_item(configs):
                 print(wandbid, slurmid, config['dataset']['value'], 'MANUAL: What act sets forth the functions of the Scottish Parliament?')
             else:
                 print('Failure for', wandbid, slurmid)
+
+
+from scipy.stats import sem 
+
+stats = lambda x: {'mean': np.mean(x), 'sem': sem(x), 'std': np.std(x), 'median': np.median(x)}
+
+
+def get_length_statistic(all_gens):
+    # extract length of generations
+    low_temp, high_temp = {}, {}
+    for wandbid, gens in all_gens.items():
+        low_temp[wandbid], high_temp[wandbid] = [], []
+        for _, gen in gens[0].items():
+            low_temp[wandbid].append(len(gen['most_likely_answer']['response']))
+            high_temp[wandbid].extend([len(r[0]) for r in gen['responses']])
+
+    stats = {'mean': np.mean, 'sem': sem, 'std': np.std, 'median': np.median}
+    columns = ['temp', 'wandbid', 'statistic', 'value']
+    
+    data = []
+    for temp_name, temp in zip(['low', 'high'], [low_temp, high_temp]):
+        for wandbid, lengths in temp.items():
+            for statname, statfunc in stats.items():
+                data.append([temp_name, wandbid, statname, statfunc(lengths)])
+
+    df = pd.DataFrame(data, columns=columns)    
+    assert set(df.wandbid.unique()) == set(list(all_gens.keys()))
+    
+    return low_temp, high_temp, df
+
+
+
+def get_cluster_stats(num_ids):
+    stats = {'mean': np.mean, 'sem': sem, 'std': np.std, 'median': np.median}
+    columns = ['wandbid', 'statistic', 'value']
+    
+    data = []
+    for wandbid, counts in num_ids.items():
+        for statname, statfunc in stats.items():
+            data.append([wandbid, statname, statfunc(counts)])
+    
+    df = pd.DataFrame(data, columns=columns)    
+    return df
