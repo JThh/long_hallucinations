@@ -149,7 +149,7 @@ class HuggingfaceModel(BaseModel):
 
                 self.model = accelerate.load_checkpoint_and_dispatch(
                     self.model, path, device_map=full_model_device_map,
-                    dtype='float16')
+                    dtype='float16', skip_keys='past_key_values')
             else:
                 raise ValueError
 
@@ -348,6 +348,7 @@ class HuggingfaceModel(BaseModel):
             last_input = hidden[-1]
         else:
             last_input = hidden[n_generated - 1]
+
         # Then access last layer for input
         last_layer = last_input[-1]
         # Then access last token in input.

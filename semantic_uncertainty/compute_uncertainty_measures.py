@@ -313,6 +313,9 @@ def main(args):
     result_dict['validation_unanswerable'] = validation_unanswerable
     logging.info('Unanswerable prop on validation: %f', np.mean(validation_unanswerable))
 
+    if 'uncertainty_measures' not in result_dict:
+        result_dict['uncertainty_measures'] = dict()
+
     if args.compute_predictive_entropy:
         result_dict['uncertainty_measures'].update(entropies)
         accuracies_mean = {k: np.mean(v) for k, v in accuracies.items()}
