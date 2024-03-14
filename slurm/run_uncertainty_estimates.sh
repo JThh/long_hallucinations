@@ -10,9 +10,9 @@
 
 # SBATCH --nodelist=oat15
 
-#SBATCH --job-name="SE"
-#SBATCH --output=log/slurm-%j.out
-#SBATCH --error=log/slurm-%j.out
+SBATCH --job-name="SE-test-13Mar"
+SBATCH --output=log/slurm-%j.out
+SBATCH --error=log/slurm-%j.out
 
 export CONDA_ENVS_PATH=/scratch-ssd/$USER/conda_envs
 export CONDA_PKGS_DIRS=/scratch-ssd/$USER/conda_pkgs

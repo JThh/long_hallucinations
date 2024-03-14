@@ -239,6 +239,7 @@ class HuggingfaceModel(BaseModel):
                 pad_token_id=pad_token_id,
             )
 
+        
         if len(outputs.sequences[0]) > self.token_limit:
             raise ValueError(
                 'Generation exceeding token limit %d > %d',
@@ -384,8 +385,18 @@ class HuggingfaceModel(BaseModel):
 
         if len(log_likelihoods) == 0:
             raise ValueError
-
-        return sliced_answer, log_likelihoods, last_token_embedding
+    
+        
+        # Assume the last token before generated token is the last one in the input
+        last_token_before_generated_index = len(inputs['input_ids'][0]) - 1
+        token_before_eos_index = len(outputs.sequences[0]) - 2  # Assuming last token is eos
+        
+        # Extract embeddings for these specific tokens across all layers
+        embeddings_last_token_before_generated = [layer[0, last_token_before_generated_index].cpu().numpy() for layer in hidden]
+        embeddings_token_before_eos = [layer[0, token_before_eos_index].cpu().numpy() for layer in hidden]
+        
+        # Return these embeddings along with other outputs
+        return sliced_answer, log_likelihoods, last_token_embedding, embeddings_last_token_before_generated, embeddings_token_before_eos
 
     def get_p_true(self, input_data):
         """Get the probability of the model anwering A (True) for the given input"""

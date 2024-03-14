@@ -10,7 +10,7 @@ export CONDA_PKGS_DIRS=/scratch-ssd/$USER/conda_pkgs
 # export TRANSFORMERS_CACHE=/scratch-ssd/loruhn/uncertainty
 
 /scratch-ssd/oatml/run_locked.sh /scratch-ssd/oatml/miniconda3/bin/conda-env update -f environment.yml
-source /scratch-ssd/oatml/miniconda3/bin/activate llm
+# source /scratch-ssd/oatml/miniconda3/bin/activate llm
 
 n_samples=200
 # model_name='llama-7b'

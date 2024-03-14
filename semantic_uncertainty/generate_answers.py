@@ -26,13 +26,14 @@ def main(args):
 
     # Implement
     user = os.environ['USER']
+    entity = os.environ['WANDB_ENT']
     slurm_jobid = os.getenv('SLURM_JOB_ID', None)
     scratch_dir = os.getenv('SCRATCH_DIR', '.')
     if not os.path.exists(f"{scratch_dir}/{user}/uncertainty"):
         os.makedirs(f"{scratch_dir}/{user}/uncertainty")
 
     wandb.init(
-        entity=args.entity,
+        entity=entity,
         project="semantic_uncertainty" if not args.debug else "semantic_uncertainty_debug",
         dir=f"{scratch_dir}/{user}/uncertainty",
         config=args,
@@ -168,10 +169,14 @@ def main(args):
                 # Temperature for first generation is always `0.1`.
                 temperature = 0.1 if i == 0 else args.temperature
 
-                predicted_answer, token_log_likelihoods, embedding = model.predict(
+                predicted_answer, token_log_likelihoods, embedding, emb_last_before_gen, emb_before_eos = model.predict(
                     local_prompt, temperature)
+                
+                # Last token embedding
                 embedding = embedding.cpu() if embedding is not None else None
-
+                emb_last_before_gen = emb_last_before_gen.cpu() if embedding is not None else None
+                emb_before_eos = emb_before_eos.cpu() if embedding is not None else None
+                
                 # Assemble `prediction` and `reference` for squad_metric.compute().
                 # Only compute accuracy if question is answerable.
                 compute_acc = args.compute_accuracy_at_all_temps or (i == 0)
@@ -196,6 +201,8 @@ def main(args):
                         'token_log_likelihoods': token_log_likelihoods,
                         'embedding': embedding,
                         'accuracy': acc,
+                        'emb_last_tok_before_gen': embeddings_last_before_generated,
+                        'emb_tok_before_eos': emb_before_eos, 
                     }
 
                     generations[example['id']].update({

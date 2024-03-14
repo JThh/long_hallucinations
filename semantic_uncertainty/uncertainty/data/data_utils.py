@@ -9,6 +9,7 @@ import datasets
 def load_ds(dataset_name, seed, add_options=None):
     """Load dataset."""
     user = os.environ['USER']
+    # public_data_path = "/scratch-ssd/oatml/data/"
     # user = 'loruhn'
 
     train_dataset, validation_dataset = None, None
