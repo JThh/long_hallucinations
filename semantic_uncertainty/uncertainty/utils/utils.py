@@ -313,7 +313,7 @@ def get_make_prompt(args):
 def get_metric(metric):
     if metric == 'squad':
 
-        squad_metric = load("squad_v2")
+        squad_metric = load("squad_v2", cache_dir=os.environ['HF_DATASETS_CACHE'])
 
         def metric(response, example, *args, **kwargs):
             # make recomputecompatible

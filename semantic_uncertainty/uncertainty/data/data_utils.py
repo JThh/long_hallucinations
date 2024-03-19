@@ -14,7 +14,7 @@ def load_ds(dataset_name, seed, add_options=None):
 
     train_dataset, validation_dataset = None, None
     if dataset_name == "squad":
-        dataset = datasets.load_dataset("squad_v2")
+        dataset = datasets.load_dataset("squad_v2", download_mode='force_redownload', trust_remote_code=True)
         train_dataset = dataset["train"]
         validation_dataset = dataset["validation"]
 

@@ -200,7 +200,7 @@ class HuggingfaceModel(BaseModel):
         self.stop_sequences = stop_sequences + [self.tokenizer.eos_token]
         self.token_limit = 4096 if 'Llama-2' in model_name else 2048
 
-    def predict(self, input_data, temperature, return_full=False):
+    def predict(self, input_data, temperature, return_full=False, return_latent=False):
 
         # TODO @lorenz: Investigate this for clarify. Why are the inputs tuples sometimes?
         if isinstance(input_data, tuple):
@@ -350,10 +350,24 @@ class HuggingfaceModel(BaseModel):
         else:
             last_input = hidden[n_generated - 1]
 
+        # Number of generated tokens, number of model layers+1, (b,inp_seq,h), (b,1,h) 
+        # print(len(hidden), len(hidden[0]), hidden[0][0].shape, hidden[1][0].shape)
+
         # Then access last layer for input
         last_layer = last_input[-1]
         # Then access last token in input.
         last_token_embedding = last_layer[:, -1, :].cpu()
+
+        if return_latent:
+            # Stack second last token embeddings from all layers
+            sec_last_input = hidden[n_generated - 2]
+            sec_last_token_embedding = torch.stack([layer[:, -1, :].cpu() for layer in sec_last_input])
+            # print(sec_last_token_embedding.shape)
+    
+            # Get the last input token embeddings (before generated tokens)
+            last_tok_bef_gen_input = hidden[0]  # (l+1,b,inp_seq,h)
+            last_tok_bef_gen_embedding = torch.stack([layer[:, -1, :].cpu() for layer in last_tok_bef_gen_input])
+            # print(last_tok_bef_gen_embedding.shape)
 
         # Get log_likelihoods.
         # outputs.scores are the logits for the generated token.
@@ -385,18 +399,13 @@ class HuggingfaceModel(BaseModel):
 
         if len(log_likelihoods) == 0:
             raise ValueError
-    
+
+        return_values = (sliced_answer, log_likelihoods, last_token_embedding)
         
-        # Assume the last token before generated token is the last one in the input
-        last_token_before_generated_index = len(inputs['input_ids'][0]) - 1
-        token_before_eos_index = len(outputs.sequences[0]) - 2  # Assuming last token is eos
-        
-        # Extract embeddings for these specific tokens across all layers
-        embeddings_last_token_before_generated = [layer[0, last_token_before_generated_index].cpu().numpy() for layer in hidden]
-        embeddings_token_before_eos = [layer[0, token_before_eos_index].cpu().numpy() for layer in hidden]
-        
-        # Return these embeddings along with other outputs
-        return sliced_answer, log_likelihoods, last_token_embedding, embeddings_last_token_before_generated, embeddings_token_before_eos
+        if return_latent:
+            return_values += (sec_last_token_embedding, last_tok_bef_gen_embedding)
+
+        return return_values
 
     def get_p_true(self, input_data):
         """Get the probability of the model anwering A (True) for the given input"""

@@ -170,7 +170,7 @@ def main(args):
                 temperature = 0.1 if i == 0 else args.temperature
 
                 predicted_answer, token_log_likelihoods, embedding, emb_last_before_gen, emb_before_eos = model.predict(
-                    local_prompt, temperature)
+                    local_prompt, temperature, return_latent=True)
                 
                 # Last token embedding
                 embedding = embedding.cpu() if embedding is not None else None
@@ -201,7 +201,7 @@ def main(args):
                         'token_log_likelihoods': token_log_likelihoods,
                         'embedding': embedding,
                         'accuracy': acc,
-                        'emb_last_tok_before_gen': embeddings_last_before_generated,
+                        'emb_last_tok_before_gen': emb_last_before_gen,
                         'emb_tok_before_eos': emb_before_eos, 
                     }
 
