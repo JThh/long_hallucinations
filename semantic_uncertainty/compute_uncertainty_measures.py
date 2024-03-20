@@ -35,7 +35,8 @@ def main(args):
         args.train_wandb_runid = args.eval_wandb_runid
 
     user = os.environ['USER']
-    scratch_dir = os.getenv('SCRATCH_DIR', '.')
+    # scratch_dir = os.getenv('SCRATCH_DIR', '.')
+    scratch_dir = '/scratch-ssd/'
     wandb_dir = f'{scratch_dir}/{user}/uncertainty'
     slurm_jobid = os.getenv('SLURM_JOB_ID', None)
     project = "semantic_uncertainty" if not args.debug else "semantic_uncertainty_debug"
@@ -160,9 +161,10 @@ def main(args):
         logging.warning('Recompute accuracy enabled. This does not apply to precomputed p_true!')
         metric = utils.get_metric(args.metric)
 
-    result_dict_pickle = restore('uncertainty_measures.pkl')
-    with open(result_dict_pickle.name, "rb") as infile:
-        result_dict = pickle.load(infile)
+    # result_dict_pickle = restore('uncertainty_measures.pkl')
+    # with open(result_dict_pickle.name, "rb") as infile:
+    #     result_dict = pickle.load(infile)
+    result_dict = {}
     result_dict['semantic_ids'] = []
 
     validation_generations_pickle = restore('validation_generations.pkl')

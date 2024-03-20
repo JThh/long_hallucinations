@@ -118,8 +118,12 @@ class HuggingfaceModel(BaseModel):
             llama2_70b = '70b' in model_name and base == 'meta-llama'
 
             if ('7b' in model_name or '13b' in model_name) or eightbit:
+                # self.model = AutoModelForCausalLM.from_pretrained(
+                #     f"{base}/{model_name}", device_map="auto",
+                #     max_memory={0: '80GIB'}, **kwargs,)
+
                 self.model = AutoModelForCausalLM.from_pretrained(
-                    f"{base}/{model_name}", device_map="auto",
+                    "/scratch-ssd/oatml/huggingface/hub/models--meta-llama--Llama-2-7b-hf/snapshots/8cca527612d856d7d32bd94f8103728d614eb852/", device_map="auto",
                     max_memory={0: '80GIB'}, **kwargs,)
 
             elif llama2_70b or llama65b:

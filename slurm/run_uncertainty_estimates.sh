@@ -10,23 +10,25 @@
 
 # SBATCH --nodelist=oat15
 
-SBATCH --job-name="SE-test-13Mar"
-SBATCH --output=log/slurm-%j.out
-SBATCH --error=log/slurm-%j.out
+# SBATCH --job-name="SE-test-20Mar"
+# SBATCH --output=log/slurm-%j.out  
+# SBATCH --error=log/slurm-%j.out
 
 export CONDA_ENVS_PATH=/scratch-ssd/$USER/conda_envs
 export CONDA_PKGS_DIRS=/scratch-ssd/$USER/conda_pkgs
 export XDG_CACHE_HOME=/scratch-ssd/oatml/
+export HF_DATASETS_CACHE=/scratch-ssd/$USER/cache
+export HF_HOME=/scratch-ssd/$USER/cache
 
 
-/scratch-ssd/oatml/run_locked.sh /scratch-ssd/oatml/miniconda3/bin/conda-env update -f environment.yaml
-source /scratch-ssd/oatml/miniconda3/bin/activate semantic_uncertainty
+# /scratch-ssd/oatml/run_locked.sh /scratch-ssd/oatml/miniconda3/bin/conda-env update -f environment.yaml
+# source /scratch-ssd/oatml/miniconda3/bin/activate semantic_uncertainty
 # pip install safetensors
 # pip uninstall -y tokenizers
 # pip uninstall -y tokenizers
 # pip install tokenizers==0.13.3
 
-srun "${@}"
+# srun "${@}"
 
 # OOD evals
 
@@ -282,7 +284,7 @@ srun "${@}"
 
 
 # bioasq to trivia-qa
-# srun python semantic_uncertainty/compute_uncertainty_measures.py --eval_wandb_runid='q4x222zx' --restore_entity_eval='jlko' --train_wandb_runid='mhd7keb5' --assign_new_wandb_id --compute_predictive_entropy --compute_p_ik
+python ../semantic_uncertainty/compute_uncertainty_measures.py --entity="jiatongg" --eval_wandb_runid='4gpkdj4y' --restore_entity_eval='jiatongg' --train_wandb_runid='4gpkdj4y' --assign_new_wandb_id --compute_predictive_entropy --compute_p_ik
 # record to trivia-qa
 # srun python semantic_uncertainty/compute_uncertainty_measures.py --eval_wandb_runid='c7z5xw6s' --restore_entity_eval='jlko' --train_wandb_runid='mhd7keb5' --assign_new_wandb_id --compute_predictive_entropy --compute_p_ik
 # squad to trivia-qa

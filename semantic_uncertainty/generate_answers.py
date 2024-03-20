@@ -235,13 +235,13 @@ def main(args):
         print(f"Overall {dataset_split} split accuracy: {accuracy}")
         wandb.log({f"{dataset_split}_accuracy": accuracy})
 
-        if dataset_split == 'validation':
-            if args.compute_p_true:
-                results_dict['uncertainty_measures'] = {
-                    'p_false':  [1 - p for p in p_trues],
-                    'p_false_fixed':  [1 - np.exp(p) for p in p_trues],
-                }
-            utils.save(results_dict, 'uncertainty_measures.pkl')
+        # if dataset_split == 'validation':
+        #     if args.compute_p_true:
+        #         results_dict['uncertainty_measures'] = {
+        #             'p_false':  [1 - p for p in p_trues],
+        #             'p_false_fixed':  [1 - np.exp(p) for p in p_trues],
+        #         }
+        #     utils.save(results_dict, 'uncertainty_measures.pkl')
 
     utils.save(experiment_details, 'experiment_details.pkl')
     logging.info('Run complete.')
@@ -261,15 +261,16 @@ if __name__ == '__main__':
         args.assign_new_wandb_id = False
 
     # Load SQuAD dataset from Hugging Face
-    logging.info('STARTING `generate_answers`!')
-    main(args)
-    logging.info('FINISHED `generate_answers`!')
+    # NOTE: tmp workaround
+    # logging.info('STARTING `generate_answers`!')
+    # main(args)
+    # logging.info('FINISHED `generate_answers`!')
 
     if args.compute_uncertainties:
         # Execute follow-up script by default.
-        args.assign_new_wandb_id = False
-        gc.collect()
-        torch.cuda.empty_cache()
+        # args.assign_new_wandb_id = False
+        # gc.collect()
+        # torch.cuda.empty_cache()
         logging.info(50 * '#X')
         logging.info('STARTING `compute_uncertainty_measures`!')
         main_compute(args)
