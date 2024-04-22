@@ -289,10 +289,3 @@ python ../semantic_uncertainty/compute_uncertainty_measures.py --entity="jiatong
 # srun python semantic_uncertainty/compute_uncertainty_measures.py --eval_wandb_runid='c7z5xw6s' --restore_entity_eval='jlko' --train_wandb_runid='mhd7keb5' --assign_new_wandb_id --compute_predictive_entropy --compute_p_ik
 # squad to trivia-qa
 # srun python semantic_uncertainty/compute_uncertainty_measures.py --eval_wandb_runid='w5yhlnws' --restore_entity_eval='jlko' --train_wandb_runid='mhd7keb5' --assign_new_wandb_id --compute_predictive_entropy --compute_p_ik
-
-
-
-
-
-
-

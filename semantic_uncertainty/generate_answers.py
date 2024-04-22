@@ -28,7 +28,8 @@ def main(args):
     user = os.environ['USER']
     entity = os.environ['WANDB_ENT']
     slurm_jobid = os.getenv('SLURM_JOB_ID', None)
-    scratch_dir = os.getenv('SCRATCH_DIR', '.')
+    # scratch_dir = os.getenv('SCRATCH_DIR', '.')
+    scratch_dir = '/scratch-ssd/'
     if not os.path.exists(f"{scratch_dir}/{user}/uncertainty"):
         os.makedirs(f"{scratch_dir}/{user}/uncertainty")
 
@@ -235,13 +236,13 @@ def main(args):
         print(f"Overall {dataset_split} split accuracy: {accuracy}")
         wandb.log({f"{dataset_split}_accuracy": accuracy})
 
-        # if dataset_split == 'validation':
-        #     if args.compute_p_true:
-        #         results_dict['uncertainty_measures'] = {
-        #             'p_false':  [1 - p for p in p_trues],
-        #             'p_false_fixed':  [1 - np.exp(p) for p in p_trues],
-        #         }
-        #     utils.save(results_dict, 'uncertainty_measures.pkl')
+        if dataset_split == 'validation':
+            if args.compute_p_true:
+                results_dict['uncertainty_measures'] = {
+                    'p_false':  [1 - p for p in p_trues],
+                    'p_false_fixed':  [1 - np.exp(p) for p in p_trues],
+                }
+            utils.save(results_dict, 'uncertainty_measures.pkl')
 
     utils.save(experiment_details, 'experiment_details.pkl')
     logging.info('Run complete.')
@@ -262,9 +263,9 @@ if __name__ == '__main__':
 
     # Load SQuAD dataset from Hugging Face
     # NOTE: tmp workaround
-    # logging.info('STARTING `generate_answers`!')
-    # main(args)
-    # logging.info('FINISHED `generate_answers`!')
+    logging.info('STARTING `generate_answers`!')
+    main(args)
+    logging.info('FINISHED `generate_answers`!')
 
     if args.compute_uncertainties:
         # Execute follow-up script by default.
