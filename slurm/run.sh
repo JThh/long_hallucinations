@@ -15,6 +15,6 @@ export TRANSFORMERS_CACHE=/scratch-ssd/$USER/cache
 
 # /scratch-ssd/$USER/conda_envs/semantic_uncertainty/bin/python -c "import torch; torch.cuda.is_available()"
 
-python ../semantic_uncertainty/generate_answers.py --model_name=Llama-2-7b-chat --temperature=1 --dataset=trivia_qa --num_samples=2000 --answerable_only
+python ../semantic_uncertainty/generate_answers.py --model_name=Llama-2-7b-chat --temperature=1 --dataset=nq --num_samples=2000  --answerable_only
 # srun python ../semantic_uncertainty/generate_answers.py --model_name=Mistral-7B-v0.1-4bit --temperature=1 --dataset=svamp --num_samples=200
 #srun python code/compute_uncertainty_measures.py --wandb_runid='1dtxdla5'

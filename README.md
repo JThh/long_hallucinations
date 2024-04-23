@@ -1,4 +1,4 @@
-# Detecting Hallucinations in Large Language Models Using Semantic Entropy
+s# Detecting Hallucinations in Large Language Models Using Semantic Entropy
 
 This repository contains the code necessary to reproduce the results of the Nature submission 'Detecting Hallucinations in Large Language Models Using Semantic Entropy'.
 

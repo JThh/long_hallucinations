@@ -284,7 +284,7 @@ export HF_HOME=/scratch-ssd/$USER/cache
 
 
 # bioasq to trivia-qa
-python ../semantic_uncertainty/compute_uncertainty_measures.py --entity="jiatongg" --eval_wandb_runid='4gpkdj4y' --restore_entity_eval='jiatongg' --train_wandb_runid='4gpkdj4y' --assign_new_wandb_id --compute_predictive_entropy --compute_p_ik
+python ../semantic_uncertainty/compute_uncertainty_measures.py --entity="jiatongg" --eval_wandb_runid='olq3cxi5' --restore_entity_eval='jiatongg' --train_wandb_runid='olq3cxi5' --assign_new_wandb_id --compute_predictive_entropy --compute_p_ik
 # record to trivia-qa
 # srun python semantic_uncertainty/compute_uncertainty_measures.py --eval_wandb_runid='c7z5xw6s' --restore_entity_eval='jlko' --train_wandb_runid='mhd7keb5' --assign_new_wandb_id --compute_predictive_entropy --compute_p_ik
 # squad to trivia-qa
