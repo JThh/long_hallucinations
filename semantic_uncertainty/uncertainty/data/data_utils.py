@@ -92,7 +92,8 @@ def load_ds(dataset_name, seed, add_options=None):
     elif dataset_name == "bioasq":
         # http://participants-area.bioasq.org/datasets/ we are using training 11b
         # could also download from here https://zenodo.org/records/7655130
-        scratch_dir = os.getenv('SCRATCH_DIR', '.')
+        # scratch_dir = os.getenv('SCRATCH_DIR', '.')
+        scratch_dir = '/scratch-ssd'
         path = f"{scratch_dir}/{user}/uncertainty/data/bioasq/training11b.json"
         with open(path, "rb") as file:
             data = json.load(file)
