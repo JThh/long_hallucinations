@@ -9,7 +9,6 @@ import wandb
 from evaluate import load
 
 from uncertainty.models.huggingface_models import HuggingfaceModel
-from uncertainty.models.oai_models import OpenAIModel
 from uncertainty.utils import openai as oai
 
 BRIEF_PROMPTS = {
@@ -18,7 +17,7 @@ BRIEF_PROMPTS = {
 
 
 def get_parser(stages=['generate', 'compute']):
-    entity = os.getenv('WANDB_SEM_UNC_ENTITY', os.getenv('USER'))
+    entity = os.getenv('WANDB_SEM_UNC_ENTITY', None)
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -39,19 +38,19 @@ def get_parser(stages=['generate', 'compute']):
         help="Keep default wandb clean.")
     if 'generate' in stages:
         parser.add_argument(
-            "--model_name", type=str, default="oai.code-davinci-002", help="Model name",
+            "--model_name", type=str, default="Llama-2-7b-chat", help="Model name",
         )
         parser.add_argument(
             "--model_max_new_tokens", type=int, default=50,
             help="Max number of tokens generated.",
         )
         parser.add_argument(
-            "--dataset", type=str, default="record",
-            choices=['trivia_qa', 'squad', 'med_qa', 'bioasq', 'record', 'nq', 'svamp'],
+            "--dataset", type=str, default="trivia_qa",
+            choices=['trivia_qa', 'squad', 'bioasq', 'nq', 'svamp'],
             help="Dataset to use")
         parser.add_argument(
             "--ood_train_dataset", type=str, default=None,
-            choices=['trivia_qa', 'squad', 'med_qa', 'bioasq', 'record'],
+            choices=['trivia_qa', 'squad', 'bioasq', 'nq', 'svamp'],
             help="Dataset to use to assemble few-shot prompt, p_true prompt, and train p_ik.")
         parser.add_argument(
             "--num_samples", type=int, default=400,
@@ -160,7 +159,6 @@ def setup_logger():
 
 def construct_fewshot_prompt_from_indices(dataset, example_indices, brief, brief_always, make_prompt):
     """Given a dataset and indices, construct a fewshot prompt."""
-    # if os.getenv
     if not brief_always:
         prompt = brief
     else:
@@ -280,8 +278,6 @@ def init_model(args):
         model = HuggingfaceModel(
             mn, stop_sequences='default',
             max_new_tokens=args.model_max_new_tokens)
-    elif mn.startswith('oai'):
-        model = OpenAIModel(mn.split('.')[1], stop_sequences='default')
     else:
         raise ValueError(f'Unknown model_name `{mn}`.')
     return model
@@ -301,9 +297,6 @@ def get_make_prompt(args):
             else:
                 prompt += 'Answer:'
             return prompt
-    elif args.prompt_type == 'chat':
-        # TODO! possibly use a different prompt here?
-        raise
     else:
         raise ValueError
 
@@ -313,10 +306,10 @@ def get_make_prompt(args):
 def get_metric(metric):
     if metric == 'squad':
 
-        squad_metric = load("squad_v2", cache_dir=os.environ['HF_DATASETS_CACHE'])
+        squad_metric = load("squad_v2")
 
         def metric(response, example, *args, **kwargs):
-            # make recomputecompatible
+            # Compatibility with recomputation.
             if 'id' in example:
                 exid = example['id']
             elif 'id' in example['reference']:
@@ -330,11 +323,9 @@ def get_metric(metric):
                 references=[get_reference(example)])
             return 1.0 if (results['f1'] >= 50.0) else 0.0
 
-    # this reuses the globally active model
+    # Reuses the globally active model for these.
     elif metric == 'llm':
         metric = llm_metric
-
-    # this reuses the globally active model
     elif metric == 'llm_gpt-3.5':
         metric = get_gpt_metric(metric)
     elif metric == 'llm_gpt-4':

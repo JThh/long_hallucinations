@@ -20,6 +20,7 @@ def load_ds(dataset_name, seed, add_options=None):
 
     elif dataset_name == 'svamp':
         dataset = datasets.load_dataset('ChilleD/SVAMP')
+
         train_dataset = dataset["train"]
         validation_dataset = dataset["test"]
 
@@ -29,7 +30,9 @@ def load_ds(dataset_name, seed, add_options=None):
             'answers': {'text': [str(x['Answer'])]}}
 
         train_dataset = [reformat(d) for d in train_dataset]
-        validation_dataset = [reformat(d) for d in validation_dataset]
+        _validation_dataset = [reformat(d) for d in validation_dataset]
+        # For semantic entropy generation: merge training with test set for more samples.
+        validation_dataset = _validation_dataset + train_dataset
 
     elif dataset_name == 'nq':
         dataset = datasets.load_dataset("nq_open")

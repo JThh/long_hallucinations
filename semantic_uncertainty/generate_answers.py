@@ -21,6 +21,15 @@ openai.api_key = os.getenv("OPENAI_API_KEY")  # Set up OpenAI API credentials.
 
 
 def main(args):
+    if args.dataset == 'svamp':
+        if not args.use_context:
+            logging.info('Forcing `use_context=True` for svamp dataset.')
+            args.use_context = True
+    elif args.dataset == 'squad':
+        if not args.answerable_only:
+            logging.info('Forcing `answerable_only=True` for squad dataset.')
+            args.answerable_only = True
+    
     experiment_details = {'args': args}
     random.seed(args.random_seed)
 
@@ -170,13 +179,18 @@ def main(args):
                 # Temperature for first generation is always `0.1`.
                 temperature = 0.1 if i == 0 else args.temperature
 
-                predicted_answer, token_log_likelihoods, embedding, emb_last_before_gen, emb_before_eos = model.predict(
-                    local_prompt, temperature, return_latent=True)
+                predicted_answer, token_log_likelihoods, embedding, emb_last_before_gen, emb_before_eos, tbg_res_embeds, slt_res_embeds, tbg_mlp_embeds, slt_mlp_embeds = model.predict(
+                    local_prompt, temperature, return_latent=True, return_residual=True)
+
+                # predicted_answer, token_log_likelihoods, embedding, emb_last_before_gen, emb_before_eos = model.predict(
+                #     local_prompt, temperature, return_latent=True, return_residual=False)
+
+                # print("[DEBUG]: res_embeds.shape", tbg_res_embeds.shape, " mlp_embeds.shape", tbg_mlp_embeds.shape)
                 
                 # Last token embedding
                 embedding = embedding.cpu() if embedding is not None else None
-                emb_last_before_gen = emb_last_before_gen.cpu() if embedding is not None else None
-                emb_before_eos = emb_before_eos.cpu() if embedding is not None else None
+                emb_last_before_gen = emb_last_before_gen.cpu() if emb_last_before_gen is not None else None
+                emb_before_eos = emb_before_eos.cpu() if emb_before_eos is not None else None
                 
                 # Assemble `prediction` and `reference` for squad_metric.compute().
                 # Only compute accuracy if question is answerable.
@@ -204,6 +218,10 @@ def main(args):
                         'accuracy': acc,
                         'emb_last_tok_before_gen': emb_last_before_gen,
                         'emb_tok_before_eos': emb_before_eos, 
+                        'tbg_res_embeds': tbg_res_embeds, 
+                        'slt_res_embeds': slt_res_embeds, 
+                        'tbg_mlp_embeds': tbg_mlp_embeds, 
+                        'slt_mlp_embeds': slt_mlp_embeds, 
                     }
 
                     generations[example['id']].update({

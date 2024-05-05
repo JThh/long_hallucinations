@@ -1,10 +1,12 @@
 """Implement HuggingfaceModel models."""
 import copy
 import logging
+import os
 from collections import Counter
-import torch
 
 import accelerate
+import torch
+from accelerate import Accelerator
 
 from transformers import AutoTokenizer
 from transformers import AutoConfig
@@ -89,6 +91,7 @@ class HuggingfaceModel(BaseModel):
         if max_new_tokens is None:
             raise
         self.max_new_tokens = max_new_tokens
+        self.accelerator = Accelerator()
 
         if stop_sequences == 'default':
             stop_sequences = STOP_SEQUENCES
@@ -121,9 +124,9 @@ class HuggingfaceModel(BaseModel):
                 # self.model = AutoModelForCausalLM.from_pretrained(
                 #     f"{base}/{model_name}", device_map="auto",
                 #     max_memory={0: '80GIB'}, **kwargs,)
-
+                user = os.environ['USER']
                 self.model = AutoModelForCausalLM.from_pretrained(
-                    "/scratch-ssd/oatml/huggingface/hub/models--meta-llama--Llama-2-7b-hf/snapshots/8cca527612d856d7d32bd94f8103728d614eb852/", device_map="auto",
+                    f"/scratch-ssd/oatml/huggingface/hub/models--meta-llama--Llama-2-7b-hf/snapshots/8cca527612d856d7d32bd94f8103728d614eb852/", device_map="auto",
                     max_memory={0: '80GIB'}, **kwargs,)
 
             elif llama2_70b or llama65b:
@@ -133,27 +136,30 @@ class HuggingfaceModel(BaseModel):
                     ignore_patterns=['pytorch_model.bin.index.json']
                 )
                 config = AutoConfig.from_pretrained(f"{base}/{model_name}")
-                with accelerate.init_empty_weights():
-                    self.model = AutoModelForCausalLM.from_config(config)
-                self.model.tie_weights()
+                # with accelerate.init_empty_weights():
+                self.model = AutoModelForCausalLM.from_config(config)
+                # self.model.tie_weights()
                 # if 'chat' in model_name:
                 #     max_mem = 17.5 * 4686198491
                 # else:
                 #     max_mem = 15 * 4686198491
-                max_mem = 15 * 4686198491
+                # max_mem = 15 * 4686198491
 
-                device_map = accelerate.infer_auto_device_map(
-                    self.model.model,
-                    max_memory={0: max_mem, 1: max_mem},
-                    dtype='float16'
-                )
-                device_map = remove_split_layer(device_map)
-                full_model_device_map = {f"model.{k}": v for k, v in device_map.items()}
-                full_model_device_map["lm_head"] = 0
+                # device_map = accelerate.infer_auto_device_map(
+                #     self.model.model,
+                #     max_memory={1: max_mem, 2: max_mem},
+                #     dtype='float16'
+                # )
+                # device_map = remove_split_layer(device_map)
+                # full_model_device_map = {f"model.{k}": v for k, v in device_map.items()}
+                # full_model_device_map["lm_head"] = 0
 
-                self.model = accelerate.load_checkpoint_and_dispatch(
-                    self.model, path, device_map=full_model_device_map,
-                    dtype='float16', skip_keys='past_key_values')
+                # self.model = accelerate.load_checkpoint_and_dispatch(
+                #     self.model, path, device_map=full_model_device_map,
+                #     dtype='float16', skip_keys='past_key_values')
+
+                self.model, self.tokenizer = self.accelerator.prepare(self.model, self.tokenizer)
+
             else:
                 raise ValueError
 
@@ -204,7 +210,7 @@ class HuggingfaceModel(BaseModel):
         self.stop_sequences = stop_sequences + [self.tokenizer.eos_token]
         self.token_limit = 4096 if 'Llama-2' in model_name else 2048
 
-    def predict(self, input_data, temperature, return_full=False, return_latent=False):
+    def predict(self, input_data, temperature, return_full=False, return_latent=False, return_residual=False):
 
         # TODO @lorenz: Investigate this for clarify. Why are the inputs tuples sometimes?
         if isinstance(input_data, tuple):
@@ -243,7 +249,6 @@ class HuggingfaceModel(BaseModel):
                 pad_token_id=pad_token_id,
             )
 
-        
         if len(outputs.sequences[0]) > self.token_limit:
             raise ValueError(
                 'Generation exceeding token limit %d > %d',
@@ -331,7 +336,6 @@ class HuggingfaceModel(BaseModel):
         # model_fits = ('falcon' in self.model_name.lower()) or ('mistral' in self.model_name.lower())
         if len(hidden) == 1:
             logging.warning(
-
                 'Taking first and only generation for hidden! '
                 'n_generated: %d, n_input_token: %d, token_stop_index %d, '
                 'last_token: %s, generation was: %s',
@@ -373,6 +377,18 @@ class HuggingfaceModel(BaseModel):
             last_tok_bef_gen_embedding = torch.stack([layer[:, -1, :].cpu() for layer in last_tok_bef_gen_input])
             # print(last_tok_bef_gen_embedding.shape)
 
+        # For LLaMA-2: prepare residual and MLP hidden states (change the transformers lib at transformers/models/llama/modeling_llama.py).
+        if return_residual:  # only applicable to llama-2, and for TBG and SLT token positions
+            decoder = self.model.get_decoder()
+            assert hasattr(decoder.layers[0], 'act_residual')
+            # layer = decoder.layers[0]
+            # print('dim of act_residual and inside:', len(layer.act_residual), layer.act_residual[0].shape)
+            # print('dim of act_mlp and inside:', len(layer.act_mlp), layer.act_mlp[0].shape)
+            tbg_residual_embeddings = torch.stack([l.act_residual[0] for l in decoder.layers])  # residual is MHSelfAtt(LN(H))
+            slt_residual_embeddings = torch.stack([l.act_residual[n_generated - 2] for l in decoder.layers])  # residual is MHSelfAtt(LN(H))
+            tbg_mlp_embeddings = torch.stack([l.act_mlp[0] for l in decoder.layers])  # mlp output is rFF(LN(Res(H))        
+            slt_mlp_embeddings = torch.stack([l.act_mlp[n_generated - 2] for l in decoder.layers])  # mlp output is rFF(LN(Res(H))        
+
         # Get log_likelihoods.
         # outputs.scores are the logits for the generated token.
         # outputs.scores is a tuple of len = n_generated_tokens.
@@ -408,6 +424,9 @@ class HuggingfaceModel(BaseModel):
         
         if return_latent:
             return_values += (sec_last_token_embedding, last_tok_bef_gen_embedding)
+
+        if return_residual:
+            return_values += (tbg_residual_embeddings, slt_residual_embeddings, tbg_mlp_embeddings, slt_mlp_embeddings)
 
         return return_values
 

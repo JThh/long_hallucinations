@@ -32,8 +32,6 @@ export HF_HOME=/scratch-ssd/$USER/cache
 
 # OOD evals
 
-
-
 # is gpt35 or gpt-4-turbo enough?
 # extra_cfg="--entailment_model=gpt-3.5 --no-use_all_generations --use_num_generations=8"
 # sbatch --cpus-per-task=24 --gres=gpu:a100:1 slurm/run_uncertainty_estimates.sh python semantic_uncertainty/compute_uncertainty_measures.py --eval_wandb_runid=dqtye228 --num_eval_samples=200 $extra_cfg
