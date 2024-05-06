@@ -1,5 +1,4 @@
-    best_metric([D.sab_aucs], token="SLT", train="SE", test="Accuracy", ds=[[D.name.upper()]*2])
-    best_metric([D.sa_aucs], token="SLT", train="Accuracy", test="Accuracy", ds=[[D.name.upper()]*2])s# Detecting Hallucinations in Large Language Models Using Semantic Entropy
+# Detecting Hallucinations in Large Language Models Using Semantic Entropy
 
 This repository contains the code necessary to reproduce the results of the Nature submission 'Detecting Hallucinations in Large Language Models Using Semantic Entropy'.
 
