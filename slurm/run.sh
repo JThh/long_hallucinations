@@ -14,9 +14,12 @@ export TRANSFORMERS_CACHE=/scratch-ssd/$USER/cache
 
 # /scratch-ssd/$USER/conda_envs/semantic_uncertainty/bin/python -c "import torch; torch.cuda.is_available()"
 
-# python ../semantic_uncertainty/generate_answers.py --model_name=Llama-2-7b-chat --dataset=svamp --num_samples=1000 --use_context --random_seed=20 --no-get_training_set_generations --no-compute_p_ik --no-compute_p_ik_answerable
-# python ../semantic_uncertainty/generate_answers.py --model_name=Llama-2-7b-chat --dataset=bioasq --num_samples=2000 --random_seed=20 --no-get_training_set_generations --no-compute_p_ik --no-compute_p_ik_answerable
-python ../semantic_uncertainty/generate_answers.py --model_name=Llama-2-70b-chat --dataset=trivia_qa --num_samples=2000 --random_seed=20 --no-get_training_set_generations --no-compute_p_ik --no-compute_p_ik_answerable
+# python ../semantic_uncertainty/generate_answers.py --model_name=Phi-3-mini-128k-instruct --dataset=svamp --num_samples=2000 --use_context --random_seed=20 --no-get_training_set_generations --no-compute_p_ik --no-compute_p_ik_answerable
+# python ../semantic_uncertainty/generate_answers.py --model_name=Phi-3-mini-128k-instruct --dataset=bioasq --num_samples=2000 --random_seed=20 --no-get_training_set_generations --no-compute_p_ik --no-compute_p_ik_answerable
+# python ../semantic_uncertainty/generate_answers.py --model_name=Phi-3-mini-128k-instruct --dataset=squad --num_samples=2000 --random_seed=20 --answerable_only --no-get_training_set_generations --no-compute_p_ik --no-compute_p_ik_answerable
+# python ../semantic_uncertainty/generate_answers.py --model_name=Phi-3-mini-128k-instruct --dataset=nq --num_samples=2000 --random_seed=20 --no-get_training_set_generations --no-compute_p_ik --no-compute_p_ik_answerable
+# python ../semantic_uncertainty/generate_answers.py --model_name=Phi-3-mini-128k-instruct --dataset=trivia_qa --num_samples=2000 --random_seed=20 --no-get_training_set_generations --no-compute_p_ik --no-compute_p_ik_answerable
+
 # python ../semantic_uncertainty/generate_answers.py --model_name=Llama-2-70b-chat --dataset=squad --num_samples=2000 --answerable_only --random_seed=20 --no-get_training_set_generations --no-compute_p_ik --no-compute_p_ik_answerable
 # python ../semantic_uncertainty/generate_answers.py --model_name=Mistral-7B-Instruct-v0.1 --dataset=trivia_qa --num_samples=2000 --random_seed=20 --no-get_training_set_generations --no-compute_p_ik --no-compute_p_ik_answerable
 # python ../semantic_uncertainty/generate_answers.py --model_name=Mistral-7B-Instruct-v0.1 --dataset=squad --num_samples=2000 --answerable_only --random_seed=20 --no-get_training_set_generations --no-compute_p_ik --no-compute_p_ik_answerable

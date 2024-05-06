@@ -136,29 +136,27 @@ class HuggingfaceModel(BaseModel):
                     ignore_patterns=['pytorch_model.bin.index.json']
                 )
                 config = AutoConfig.from_pretrained(f"{base}/{model_name}")
-                # with accelerate.init_empty_weights():
-                self.model = AutoModelForCausalLM.from_config(config)
-                # self.model.tie_weights()
+                with accelerate.init_empty_weights():
+                    self.model = AutoModelForCausalLM.from_config(config)
+                self.model.tie_weights()
                 # if 'chat' in model_name:
                 #     max_mem = 17.5 * 4686198491
                 # else:
                 #     max_mem = 15 * 4686198491
-                # max_mem = 15 * 4686198491
+                max_mem = 17.5 * 4686198491
 
-                # device_map = accelerate.infer_auto_device_map(
-                #     self.model.model,
-                #     max_memory={1: max_mem, 2: max_mem},
-                #     dtype='float16'
-                # )
-                # device_map = remove_split_layer(device_map)
-                # full_model_device_map = {f"model.{k}": v for k, v in device_map.items()}
-                # full_model_device_map["lm_head"] = 0
+                device_map = accelerate.infer_auto_device_map(
+                    self.model.model,
+                    max_memory={0: max_mem, 1: max_mem},
+                    dtype='float16'
+                )
+                device_map = remove_split_layer(device_map)
+                full_model_device_map = {f"model.{k}": v for k, v in device_map.items()}
+                full_model_device_map["lm_head"] = 0
 
-                # self.model = accelerate.load_checkpoint_and_dispatch(
-                #     self.model, path, device_map=full_model_device_map,
-                #     dtype='float16', skip_keys='past_key_values')
-
-                self.model, self.tokenizer = self.accelerator.prepare(self.model, self.tokenizer)
+                self.model = accelerate.load_checkpoint_and_dispatch(
+                    self.model, path, device_map=full_model_device_map,
+                    dtype='float16', skip_keys='past_key_values')
 
             else:
                 raise ValueError
@@ -202,6 +200,16 @@ class HuggingfaceModel(BaseModel):
                 trust_remote_code=True,
                 device_map='auto',
                 **kwargs,
+            )
+        elif 'phi' in model_name.lower():
+            model_id = f'microsoft/{model_name}'  # e.g. Phi-3-mini-128k-instruct
+            self.tokenizer = AutoTokenizer.from_pretrained(
+                model_id, device_map='auto', token_type_ids=None,
+                clean_up_tokenization_spaces=False)
+            self.model = AutoModelForCausalLM.from_pretrained(
+                model_id,
+                trust_remote_code=True,
+                device_map='auto',
             )
         else:
             raise ValueError
@@ -380,14 +388,15 @@ class HuggingfaceModel(BaseModel):
         # For LLaMA-2: prepare residual and MLP hidden states (change the transformers lib at transformers/models/llama/modeling_llama.py).
         if return_residual:  # only applicable to llama-2, and for TBG and SLT token positions
             decoder = self.model.get_decoder()
-            assert hasattr(decoder.layers[0], 'act_residual')
-            # layer = decoder.layers[0]
-            # print('dim of act_residual and inside:', len(layer.act_residual), layer.act_residual[0].shape)
-            # print('dim of act_mlp and inside:', len(layer.act_mlp), layer.act_mlp[0].shape)
-            tbg_residual_embeddings = torch.stack([l.act_residual[0] for l in decoder.layers])  # residual is MHSelfAtt(LN(H))
-            slt_residual_embeddings = torch.stack([l.act_residual[n_generated - 2] for l in decoder.layers])  # residual is MHSelfAtt(LN(H))
-            tbg_mlp_embeddings = torch.stack([l.act_mlp[0] for l in decoder.layers])  # mlp output is rFF(LN(Res(H))        
-            slt_mlp_embeddings = torch.stack([l.act_mlp[n_generated - 2] for l in decoder.layers])  # mlp output is rFF(LN(Res(H))        
+            layer = decoder.layers[0]
+            print('number of layers:',len(decoder.layers))
+            print('dim of residual_act and inside:', len(layer.residual_act), layer.residual_act[0].shape)
+            print('dim of mlp_act and inside:', len(layer.mlp_act), layer.mlp_act[0].shape)
+            tbg_residual_embeddings = torch.stack([l.residual_act[0] for l in decoder.layers])  # residual is MHSelfAtt(LN(H))
+            print()
+            slt_residual_embeddings = torch.stack([l.residual_act[n_generated - 2] for l in decoder.layers])  # residual is MHSelfAtt(LN(H))
+            tbg_mlp_embeddings = torch.stack([l.mlp_act[0] for l in decoder.layers])  # mlp output is rFF(LN(Res(H))        
+            slt_mlp_embeddings = torch.stack([l.mlp_act[n_generated - 2] for l in decoder.layers])  # mlp output is rFF(LN(Res(H))        
 
         # Get log_likelihoods.
         # outputs.scores are the logits for the generated token.
