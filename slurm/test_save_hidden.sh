@@ -1,1 +1,0 @@
-python ../semantic_uncertainty/generate_answers.py --model_name=Llama-2-7b-chat --dataset=squad --num_samples=20 --num_eval_samples=20 --random_seed=20 --no-get_training_set_generations --no-compute_p_ik --no-compute_p_ik_answerable

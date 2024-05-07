@@ -211,6 +211,17 @@ class HuggingfaceModel(BaseModel):
                 trust_remote_code=True,
                 device_map='auto',
             )
+        elif 'gemma' in model_name:
+            model_id = f'google/{model_name}'  # e.g. gemma-7b-it
+            self.tokenizer = AutoTokenizer.from_pretrained(
+                model_id, device_map='auto', token_type_ids=None,
+                clean_up_tokenization_spaces=False)
+            self.model = AutoModelForCausalLM.from_pretrained(
+                model_id,
+                trust_remote_code=True,
+                device_map='auto',
+                torch_dtype=torch.bfloat16
+            )
         else:
             raise ValueError
 
@@ -375,8 +386,13 @@ class HuggingfaceModel(BaseModel):
         last_token_embedding = last_layer[:, -1, :].cpu()
 
         if return_latent:
-            # Stack second last token embeddings from all layers
-            sec_last_input = hidden[n_generated - 2]
+            # Stack second last token embeddings from all layers 
+            if len(hidden) == 1:  # FIX: runtime error for mistral-7b on bioasq
+                sec_last_input = hidden[0]
+            elif ((n_generated - 2) >= len(hidden)):
+                sec_last_input = hidden[-2]
+            else:
+                sec_last_input = hidden[n_generated - 2]
             sec_last_token_embedding = torch.stack([layer[:, -1, :].cpu() for layer in sec_last_input])
             # print(sec_last_token_embedding.shape)
     
@@ -388,15 +404,12 @@ class HuggingfaceModel(BaseModel):
         # For LLaMA-2: prepare residual and MLP hidden states (change the transformers lib at transformers/models/llama/modeling_llama.py).
         if return_residual:  # only applicable to llama-2, and for TBG and SLT token positions
             decoder = self.model.get_decoder()
-            layer = decoder.layers[0]
-            print('number of layers:',len(decoder.layers))
-            print('dim of residual_act and inside:', len(layer.residual_act), layer.residual_act[0].shape)
-            print('dim of mlp_act and inside:', len(layer.mlp_act), layer.mlp_act[0].shape)
-            tbg_residual_embeddings = torch.stack([l.residual_act[0] for l in decoder.layers])  # residual is MHSelfAtt(LN(H))
-            print()
-            slt_residual_embeddings = torch.stack([l.residual_act[n_generated - 2] for l in decoder.layers])  # residual is MHSelfAtt(LN(H))
-            tbg_mlp_embeddings = torch.stack([l.mlp_act[0] for l in decoder.layers])  # mlp output is rFF(LN(Res(H))        
-            slt_mlp_embeddings = torch.stack([l.mlp_act[n_generated - 2] for l in decoder.layers])  # mlp output is rFF(LN(Res(H))        
+            # layer = decoder.layers[0]
+            # print('number of layers:',len(decoder.layers))
+            # print('dim of residual_act and inside:', len(layer.residual_act), layer.residual_act[0].shape)
+            # print('dim of mlp_act and inside:', len(layer.mlp_act), layer.mlp_act[0].shape)
+            residual_embeddings = [l.residual_act[n_generated - 2] for l in decoder.layers]  # residual is MHSelfAtt(LN(H))
+            mlp_embeddings = [l.mlp_act[n_generated - 2] for l in decoder.layers]  # mlp output is rFF(LN(Res(H))        
 
         # Get log_likelihoods.
         # outputs.scores are the logits for the generated token.
@@ -429,13 +442,19 @@ class HuggingfaceModel(BaseModel):
         if len(log_likelihoods) == 0:
             raise ValueError
 
-        return_values = (sliced_answer, log_likelihoods, last_token_embedding)
-        
+        hidden_states = (last_token_embedding,)
+
         if return_latent:
-            return_values += (sec_last_token_embedding, last_tok_bef_gen_embedding)
+            hidden_states += (sec_last_token_embedding, last_tok_bef_gen_embedding)
+        else:
+            hidden_states += (None, None)
 
         if return_residual:
-            return_values += (tbg_residual_embeddings, slt_residual_embeddings, tbg_mlp_embeddings, slt_mlp_embeddings)
+            hidden_states += (residual_embeddings, mlp_embeddings)
+        else:
+            hidden_states += (None, None)
+    
+        return_values = (sliced_answer, log_likelihoods, hidden_states)
 
         return return_values
 

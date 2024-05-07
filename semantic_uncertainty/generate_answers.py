@@ -179,13 +179,8 @@ def main(args):
                 # Temperature for first generation is always `0.1`.
                 temperature = 0.1 if i == 0 else args.temperature
 
-                # predicted_answer, token_log_likelihoods, embedding, emb_last_before_gen, emb_before_eos, tbg_res_embeds, slt_res_embeds, tbg_mlp_embeds, slt_mlp_embeds = model.predict(
-                #     local_prompt, temperature, return_latent=True, return_residual=True)
-
-                predicted_answer, token_log_likelihoods, embedding, emb_last_before_gen, emb_before_eos = model.predict(
-                    local_prompt, temperature, return_latent=True, return_residual=False)
-
-                # print("[DEBUG]: res_embeds.shape", tbg_res_embeds.shape, " mlp_embeds.shape", tbg_mlp_embeds.shape)
+                predicted_answer, token_log_likelihoods, (embedding, emb_last_before_gen, emb_before_eos, res_embeds, mlp_embeds) = model.predict(
+                    local_prompt, temperature, return_latent=True, return_residual=True)  # set return_residual to False for non-llama models
                 
                 # Last token embedding
                 embedding = embedding.cpu() if embedding is not None else None
@@ -218,10 +213,8 @@ def main(args):
                         'accuracy': acc,
                         'emb_last_tok_before_gen': emb_last_before_gen,
                         'emb_tok_before_eos': emb_before_eos, 
-                        # 'tbg_res_embeds': tbg_res_embeds, 
-                        # 'slt_res_embeds': slt_res_embeds, 
-                        # 'tbg_mlp_embeds': tbg_mlp_embeds, 
-                        # 'slt_mlp_embeds': slt_mlp_embeds, 
+                        'res_embeds': res_embeds, 
+                        'mlp_embeds': mlp_embeds, 
                     }
 
                     generations[example['id']].update({
