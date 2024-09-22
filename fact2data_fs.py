@@ -1,27 +1,12 @@
 import pickle
-import random
-from pprint import pprint
 import os
 import re
 
-# Removed cosine similarity imports as they are no longer needed
-# from sklearn.feature_extraction.text import TfidfVectorizer
-# from sklearn.metrics.pairwise import cosine_similarity
-
 # Constants
-# FACTSCORE_FILE_NAME = '../FActScore/data/labeled/Llama3.1-8B_fact_scores_nent_183_temp_0.1_maxtok_128_api_gpt-4o-mini.pkl'
-FACTSCORE_FILE_NAME = '../FActScore/data/Gemma2-9B_test_set.pkl'
+FACTSCORE_FILE_NAME = '../FActScore/data/Llama3.1-8B_test_set.pkl'
 ENTITIES_FILE = '../FActScore/data/unlabeled/prompt_entities.txt'
-NUM_ENTITIES = 200  # Use only 21 for consistency with the Nature paper
-# NUM_ENTITIES = 21  # Use only 21 for consistency with the Nature paper
+OUTPUT_PYTHON_FILE = 'wiki_data_llama.py'  # Output Python file to save the data
 MAJOR_FLAG = 'Major False'  # Flag as False by Longhallu in the SE paper
-MAX_CLAIMS_PER_ENTITY = 6  # Maximum number of claims per entity
-OUTPUT_PYTHON_FILE = 'wiki_data_gemma.py'  # Output Python file to save the data
-RANDOM_SEED = 42  # Set a random seed for reproducibility
-# SIMILARITY_THRESHOLD = 0.5  # Threshold for cosine similarity to consider claims as similar
-
-# Set the random seed
-random.seed(RANDOM_SEED)
 
 def load_pickle(file_path):
     """Load a pickle file and return its content."""
@@ -37,11 +22,11 @@ def load_pickle(file_path):
         print(f'Error: Failed to unpickle file "{file_path}".')
         exit(1)
 
-def load_entities(file_path, num_entities):
-    """Load a specified number of entities from a text file."""
+def load_entities(file_path):
+    """Load all entities from a text file."""
     try:
         with open(file_path, 'r') as f:
-            entities = f.read().splitlines()[:num_entities]
+            entities = f.read().splitlines()
         print(f'Loaded {len(entities)} entities from "{file_path}".')
         return entities
     except FileNotFoundError:
@@ -62,17 +47,14 @@ def is_valid_claim(claim: str) -> bool:
     claim_lower = claim.lower()
     return not any(word in claim_lower for word in flag_words)
 
-# Removed compute_similarity_matrix and select_diverse_claims functions
-
-def process_claims(entities, scores, major_flag, max_claims):
+def process_claims(entities, scores, major_flag):
     """
-    Process claims for each entity and compile the data, ensuring minimal content overlap.
+    Process claims for each entity and compile the data.
     
     Args:
         entities (list): List of entity names.
         scores (dict): FactScore results containing decisions.
         major_flag (str): Replacement label for unsupported claims.
-        max_claims (int): Maximum number of claims per entity.
     
     Returns:
         list: Processed data for each entity.
@@ -87,11 +69,12 @@ def process_claims(entities, scores, major_flag, max_claims):
         print('Error: "decisions" key not found in FactScore data.')
         exit(1)
     
-    for i, (entity, claims) in enumerate(zip(entities, decisions[:len(entities)])):
-        if len(claims) == 0:
+    for i, (entity, claims) in enumerate(zip(entities[:len(decisions)], decisions)):
+        if not claims:
             continue
         datum = []
-        datum.extend([i, f'Tell me a bio of {entity}.', None, [None]])
+        datum.extend([i, f"""Who is {entity}? Provide as many specific details and examples as possible (such as names of \
+people, numbers, events, locations, dates, times, etc.)""", None, [None]])
 
         # Extract valid claims along with their labels
         valid_claims_with_labels = [(claim.get('atom', '').strip(), claim.get('is_supported', False)) 
@@ -99,7 +82,7 @@ def process_claims(entities, scores, major_flag, max_claims):
         
         # Separate claims and labels
         claims_text = [c[0] for c in valid_claims_with_labels]
-        claims_labels = [c[1] if c[1] else MAJOR_FLAG for c in valid_claims_with_labels]
+        claims_labels = [major_flag if not c[1] else c[1] for c in valid_claims_with_labels]
 
         if not claims_text:
             # If no valid claims, append empty lists for atoms and labels
@@ -135,9 +118,9 @@ def write_output_file(data, output_file_path, major_flag):
             f.write("data = [\n")
             for datum in data:
                 f.write("    [\n")
-                # Write index, qs, None, [None]
+                # Write index, question, None, [None]
                 f.write(f"        {datum[0]},\n")
-                f.write(f"        '{datum[1]}',\n")
+                f.write(f"        '''{datum[1]}''',\n")
                 f.write("        None,\n")
                 f.write("        [None],\n")
                 
@@ -155,7 +138,6 @@ def write_output_file(data, output_file_path, major_flag):
                     if label == major_flag:
                         f.write("            MAJOR,\n")
                     else:
-                        # Assuming labels are either True or False
                         f.write(f"            {label},\n")
                 f.write("        ]\n")
                 
@@ -171,10 +153,10 @@ def main():
     scores = load_pickle(FACTSCORE_FILE_NAME)
     
     # Load entities
-    entities = load_entities(ENTITIES_FILE, NUM_ENTITIES)
+    entities = load_entities(ENTITIES_FILE)
     
-    # Process claims with random selection and minimal content overlap removed
-    data, total_claims = process_claims(entities, scores, MAJOR_FLAG, MAX_CLAIMS_PER_ENTITY)
+    # Process claims
+    data, total_claims = process_claims(entities, scores, MAJOR_FLAG)
     
     # Output results
     print(f'\nTotal claims processed: {total_claims}\n')
@@ -183,7 +165,7 @@ def main():
     write_output_file(data, OUTPUT_PYTHON_FILE, MAJOR_FLAG)
     
     # Optional: Print a summary using pprint
-    print('Processed Data:')
+    # Uncomment the following line if you want to see the processed data
     # pprint(data, width=120, compact=True)
 
 if __name__ == '__main__':

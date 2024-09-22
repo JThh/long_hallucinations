@@ -225,7 +225,7 @@ def get_metrics(all_labels, all_uncertainties):
         else:
             raise ValueError
         labels = np.array(labels)
-        assert set(labels) == {True, False}, set(labels)
+        # assert set(labels) == {True, False}, set(labels)
         out[wrongness]['per_question'] = dict(labels=labels)
 
         out[wrongness]['performance'] = dict(

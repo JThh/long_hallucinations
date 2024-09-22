@@ -26,7 +26,7 @@ CHECK_PROP = 'check_prop'
 ANSWER_QS = 'answer_qs'
 EQUIVALENCE = 'equivalence'
 
-predict_func = lambda category: llama_predict_w_log if category == ANSWER_QS else predict_w_log
+predict_func = lambda category: llama_predict_w_log if category in [ANSWER_QS, CHECK_PROP] else predict_w_log
 
 
 class SpoofData:
@@ -393,24 +393,29 @@ class SelfCheckBaseline(BaseModel):
         return prompts
 
     def base_check_prop(self, data):
-        instruction = "Is it likely that the statement is true? Respond with 'yes' or 'no'."
+        """More instructive prompt for less tuned models."""
+        instruction = "Decide whether the following statement is likely true or not. Respond with 'yes' or 'no'."
+
+        example = """Example:
+        Statement: The Earth orbits the Sun.
+        Answer: yes
+
+        """
 
         if data['text_so_far'] is None:
-            return f"""You see this statement:
+            return f"""{example}{instruction}
 
-{data["proposition"]}
-
-{instruction}"""
+        Statement: {data["proposition"]}
+        Answer:"""
         else:
-            return f"""Following this text:
+            return f"""{example}Following this text:
 
-{data["text_so_far"]}
+        {data["text_so_far"]}
 
-You see this statement:
+        {instruction}
 
-{data["proposition"]}
-
-{instruction}"""
+        Statement: {data["proposition"]}
+        Answer:"""
 
     def check_truth(self, *, rp, wait, data):
         uq = data['didx']
@@ -478,13 +483,29 @@ The next sentence should be the answer to the following question:
 {instruction}"""
 
     def base_equivalence(self, data):
-        prompt = f'Question: {data["question"]}\n'
-        prompt += 'Here are some brainstormed ideas: '
-        for _ in range(1, self.n_regenerate + 1):
-            prompt += '{}\n'
-        prompt = prompt.format(data['proposition'], *data['regen_answers'])
+        """More instructive prompt for less tuned models."""
+        # Include an example to demonstrate the expected behavior
+        example_prompt = (
+            'Example:\n'
+            'Question: What is the capital of France?\n'
+            'Here are some brainstormed ideas:\n'
+            'Paris\n'
+            'London\n'
+            'Possible Answer: Paris\n'
+            'Is the possible answer true based on the question?\n'
+            'Answer: yes\n\n'
+        )
+        # Start building the actual prompt
+        prompt = example_prompt
+        prompt += f'Question: {data["question"]}\n'
+        prompt += 'Here are some brainstormed ideas:\n'
+        # Include the proposition and regenerated answers
+        all_answers = [data['proposition']] + data['regen_answers']
+        for answer in all_answers:
+            prompt += f'{answer}\n'
         prompt += f'Possible Answer: {data["proposition"]}\n'
-        prompt += 'Is the possible answer true? Respond with "yes" or "no".'
+        prompt += 'Is the possible answer true based on the question?\n'
+        prompt += 'Answer:'
         return prompt
 
     def check_truth(self, *, rp, wait, data):

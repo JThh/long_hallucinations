@@ -13,7 +13,8 @@ from utils import log_w_indent
 import models
 # from data import data
 # from wiki_data import data
-from wiki_data_gemma import data
+from wiki_data_llama import data
+# from wiki_data_gemma import data
 
 # pylint: disable=invalid-name
 
@@ -152,7 +153,7 @@ if __name__ == '__main__':
         "--wait", action=argparse.BooleanOptionalAction, default=False,
         help="Step through execution with pauses.")
     parser.add_argument(
-        "--intermediate_export", action=argparse.BooleanOptionalAction, default=False,
+        "--intermediate_export", action=argparse.BooleanOptionalAction, default=True,
         help="Step through execution with pauses.")
     parser.add_argument(
         "--model", type=str, default='QADebertaEntailment',
