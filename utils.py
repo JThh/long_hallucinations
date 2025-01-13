@@ -14,6 +14,7 @@ from tenacity import (retry, wait_random_exponential)
 import numpy as np
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
+from huggingface_hub import snapshot_download
 
 from eval_utils import (
     bootstrap, compatible_bootstrap, auroc, accuracy_at_quantile,
@@ -24,7 +25,7 @@ from data import MAJOR
 CLIENT = OpenAI(api_key=os.environ['OPENAI_API_KEY'])
 api = wandb.Api()
 api.entity = os.environ['WANDB_ENT']
-MODEL_NAME = "meta-llama/Meta-Llama-3.1-8B-Instruct" 
+MODEL_NAME = "meta-llama/Meta-Llama-3.1-70B-Instruct" 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"  # Use GPU if available
 
 
@@ -72,11 +73,19 @@ def load_llama_model(model_name: str, device: str):
         model: The loaded LLaMA model.
     """
     try:
-        tokenizer = AutoTokenizer.from_pretrained(model_name)
-        model = AutoModelForCausalLM.from_pretrained(model_name, device_map="auto")
-        model.to(device)
+        path = snapshot_download(
+            repo_id=model_name,
+            allow_patterns=['*.json', '*.model', '*.safetensors'],
+            ignore_patterns=['pytorch_model.bin.index.json']
+        )
+        tokenizer = AutoTokenizer.from_pretrained(path)
+        model = AutoModelForCausalLM.from_pretrained(
+            path, 
+            device_map="auto", 
+            torch_dtype=torch.float16
+        )
         model.eval()
-        print(f"LLaMA model '{model_name}' loaded successfully on '{device}'.")
+        print(f"LLaMA model '{model_name}' loaded successfully.")
         return tokenizer, model
     except Exception as e:
         print(f"Error loading model '{model_name}': {e}")
@@ -152,7 +161,7 @@ def oai_predict(prompt):
 
 def llama_predict(prompt: str, max_new_tokens: int = 50, temperature: float = 1.0) -> str:
     """
-    Generate a prediction using the LLaMA-3-8B model.
+    Generate a prediction using the LLaMA-3-70B model.
     
     Args:
         prompt (str): The input prompt for the model.

@@ -13,7 +13,8 @@ from utils import log_w_indent
 import models
 # from data import data
 # from wiki_data import data
-from wiki_data_llama import data
+# from wiki_data_llama import data
+from wiki_data_llama_70b import data
 # from wiki_data_gemma import data
 
 # pylint: disable=invalid-name

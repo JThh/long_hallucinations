@@ -499,7 +499,8 @@ The next sentence should be the answer to the following question:
         prompt = example_prompt
         prompt += f'Question: {data["question"]}\n'
         prompt += 'Here are some brainstormed ideas:\n'
-        # Include the proposition and regenerated answers
+        # Include the proposition and regenerated answersp
+        import pdb; pdb.set_trace()
         all_answers = [data['proposition']] + data['regen_answers']
         for answer in all_answers:
             prompt += f'{answer}\n'

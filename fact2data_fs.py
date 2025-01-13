@@ -1,9 +1,7 @@
 import pickle
-import os
-import re
 
 # Constants
-FACTSCORE_FILE_NAME = '../FActScore/data/Llama3.1-8B_test_set.pkl'
+FACTSCORE_FILE_NAME = '../FActScore/data/Llama3.2-3B_test_set.pkl'
 ENTITIES_FILE = '../FActScore/data/unlabeled/prompt_entities.txt'
 OUTPUT_PYTHON_FILE = 'wiki_data_llama.py'  # Output Python file to save the data
 MAJOR_FLAG = 'Major False'  # Flag as False by Longhallu in the SE paper
