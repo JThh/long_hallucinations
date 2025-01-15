@@ -1,0 +1,2 @@
+Classifier,Layer Group,Validation AUROC Mean,Validation AUROC Std,Total Training Time (s)
+xgboost,10-14,0.7667080967696812,0.034416852775141255,415.7289385795593

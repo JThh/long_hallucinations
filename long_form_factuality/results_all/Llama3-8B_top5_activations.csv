@@ -1,0 +1,6 @@
+Layer,Neuron,Dimension,Average Activation (Supported),Std Activation (Supported),Average Activation (Not Supported),Std Activation (Not Supported)
+15,2629,19013,-0.3667,0.2542,-0.267,0.252
+15,2485,18869,0.8213,0.2003,0.729,0.2103
+14,1162,13450,-0.3005,0.1766,-0.3564,0.1654
+14,709,12997,-0.311,0.2312,-0.1964,0.2141
+14,133,12421,0.3228,0.2023,0.2135,0.1877

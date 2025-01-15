@@ -1,0 +1,2 @@
+Classifier,Input Computation Time (s),Prediction Time (s)
+xgboost,47.02999520301819,0.1783127784729004

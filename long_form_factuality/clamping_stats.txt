@@ -1,0 +1,56 @@
+Layer with highest AUROC: Layer 26 with AUROC = 0.7159                                                                                                                                                                                                                                                                                                                                                                    
+Activation Statistics on Llama3.2-3B's Best Layer (Layer 26):                                                                                                                                                                     
+  Dimension 79:                                                                                                                                                                                                     
+    Supported Class: Average Activation = 1.0098, Standard Error = 0.0143                                                                                                                                           
+    Not Supported Class: Average Activation = 0.7061, Standard Error = 0.0216                                                                                                                                       
+  Dimension 3039:                                    
+    Supported Class: Average Activation = -0.1692, Standard Error = 0.0198                                
+    Not Supported Class: Average Activation = -0.1887, Standard Error = 0.0293                            
+  Dimension 1534:                                    
+    Supported Class: Average Activation = 0.0480, Standard Error = 0.0296                                 
+    Not Supported Class: Average Activation = 0.4817, Standard Error = 0.0422
+
+Layer with highest AUROC: Layer 31 with AUROC = 0.7124 
+Activation Statistics on Llama3.1-8B's Best Layer (Layer 31):                                                                                                  
+  Dimension 133:                                                                                                                                 
+    Supported Class: Average Activation = 0.3340, Standard Error = 0.0093                                                                        
+    Not Supported Class: Average Activation = 0.2249, Standard Error = 0.0163                                                                    
+  Dimension 2485:                   
+    Supported Class: Average Activation = 1.9258, Standard Error = 0.0173                                                                        
+    Not Supported Class: Average Activation = 1.5625, Standard Error = 0.0323                                                                    
+  Dimension 4055:                   
+    Supported Class: Average Activation = 0.1847, Standard Error = 0.0136                                                                        
+    Not Supported Class: Average Activation = 0.1804, Standard Error = 0.0257                                                                    
+  Dimension 1168:                   
+    Supported Class: Average Activation = -1.9717, Standard Error = 0.0158                                                                       
+    Not Supported Class: Average Activation = -2.2324, Standard Error = 0.0275                                                                   
+  Dimension 2082:                   
+    Supported Class: Average Activation = -0.8340, Standard Error = 0.0241                                                                       
+    Not Supported Class: Average Activation = -0.4082, Standard Error = 0.0440   
+
+Layer with highest AUROC: Layer 78 with AUROC = 0.7375
+Activation Statistics on Llama3.1-70B's Best Layer (Layer 78):                                                                                                                                                                     
+  Dimension 4030:                                                                                                                                                                                                   
+    Supported Class: Average Activation = 3.2441, Standard Error = 0.0166                                                                                                                                           
+    Not Supported Class: Average Activation = 2.9062, Standard Error = 0.0318                                                                                                                                       
+  Dimension 6890:                                                                                         
+    Supported Class: Average Activation = -1.3633, Standard Error = 0.0135                                                                                                                                          
+    Not Supported Class: Average Activation = -1.1328, Standard Error = 0.0265                                                                                                                                      
+  Dimension 620:                                                                                          
+    Supported Class: Average Activation = -1.0137, Standard Error = 0.0119                                                                                                                                          
+    Not Supported Class: Average Activation = -1.1748, Standard Error = 0.0209                                                                                                                                      
+  Dimension 2567:                                                                                         
+    Supported Class: Average Activation = -0.6934, Standard Error = 0.0154                                                                                                                                          
+    Not Supported Class: Average Activation = -0.9399, Standard Error = 0.0280                                                                                                                                      
+  Dimension 636:                                                                                          
+    Supported Class: Average Activation = -3.2832, Standard Error = 0.0207                                                                                                                                          
+    Not Supported Class: Average Activation = -3.1992, Standard Error = 0.0360                                                                                                                                      
+  Dimension 5092:                                                                                         
+    Supported Class: Average Activation = 0.1162, Standard Error = 0.0083                                                                                                                                           
+    Not Supported Class: Average Activation = -0.1002, Standard Error = 0.0152                                                                                                                                      
+  Dimension 4994:                                                                                         
+    Supported Class: Average Activation = 1.1250, Standard Error = 0.0151                                                                                                                                           
+    Not Supported Class: Average Activation = 0.8550, Standard Error = 0.0275                                                                                                                                       
+  Dimension 1071:                                                                                         
+    Supported Class: Average Activation = 0.1196, Standard Error = 0.0238                                                                                                                                           
+    Not Supported Class: Average Activation = 0.5298, Standard Error = 0.0485 
