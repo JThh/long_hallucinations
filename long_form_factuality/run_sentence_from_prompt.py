@@ -67,15 +67,13 @@ def load_entities(entities_file, entity_range=None, max_entities=None):
 
 def initialize_model(hf_model_name, device='cuda', max_memory='80GIB'):
     """Initialize the tokenizer and model."""
-    if 'llama-3.1-70b' in hf_model_name.lower():
-        path = '/scratch/ms23jh/cache/hub/models--meta-llama--Meta-Llama-3.1-70B-Instruct/snapshots/945c8663693130f8be2ee66210e062158b2a9693/'
-    else:
-        path = hf_model_name
+    path = hf_model_name
     tokenizer = AutoTokenizer.from_pretrained(path)
     model = AutoModelForCausalLM.from_pretrained(
         path, 
         device_map="auto", 
-        torch_dtype=torch.bfloat16
+        torch_dtype=torch.float16,
+        cache_dir=os.environ["HF_DATASETS_CACHE"],
     )
     logging.info(f'Model "{hf_model_name}" loaded on device "{device}".')
     return tokenizer, model
@@ -136,19 +134,18 @@ def generate_responses(ents, tokenizer, model, make_prompt, max_new_tokens, temp
 
 def compute_factscore(ents, generations, openai_key, gamma=10):
     """Compute FactScore for the generated responses."""
-    fs = FactScorer(cache_dir='/scratch/ms23jh')
+    fs = FactScorer(cache_dir='./FActScore/.cache')
     return fs.get_score(ents, generations, gamma=gamma, verbose=True)
 
-def save_output(factscore_output, model_name, len_ents, temperature, max_new_tokens, api, output_dir, backup_dir, use_clamped):
+def save_output(factscore_output, model_name, entity_range, temperature, max_new_tokens, api, output_dir, backup_dir, use_clamped):
     """Save the FactScore output to files."""
     os.makedirs(output_dir, exist_ok=True)
-    os.makedirs(backup_dir, exist_ok=True)
     
-    filename = f"{model_name}_{'clamped' if use_clamped else ''}_fact_scores_nent_{len_ents}_temp_{temperature}_maxtok_{max_new_tokens}_api_{api}.pkl"
-    for dir_path in [output_dir, backup_dir]:
+    filename = f"{model_name}{'_clamped' if use_clamped else ''}_fact_scores_ent_{entity_range}_temp_{temperature}_maxtok_{max_new_tokens}_api_{api}.pkl"
+    for dir_path in [output_dir]:
         with open(os.path.join(dir_path, filename), 'wb') as f:
             pickle.dump(factscore_output, f)
-    logging.info(f'FactScore output saved to "{output_dir}" and backup to "{backup_dir}".')
+    logging.info(f'FactScore output saved to "{output_dir}".')
 
 def get_postamble():
     """Return a string containing postamble for prompting."""
@@ -164,18 +161,17 @@ def go_make_prompt(entity, postamble):
 
 def main():
     parser = argparse.ArgumentParser(description='FactScore Generation and Evaluation')
-    parser.add_argument('--hf_model_name', type=str, default='meta-llama/Meta-Llama-3.1-405B-Instruct', help='Hugging Face model name, e.g. google/gemma-2-9b-it')
-    parser.add_argument('--model_name', type=str, default='Llama3.1-405B', help='Model name identifier, e.g. Gemma2-9B')
-    parser.add_argument('--entities_file', type=str, default='./FActScore/data/unlabeled/prompt_entities.txt', help='File containing entities')
+    parser.add_argument('--hf_model_name', type=str, default='meta-llama/Llama-3.1-70B-Instruct', help='Hugging Face model name, e.g. google/gemma-2-9b-it')
+    parser.add_argument('--model_name', type=str, default='Llama3.1-70B', help='Model name identifier, e.g. Gemma2-9B')
+    parser.add_argument('--entities_file', type=str, default='./FActScore/data/prompt_entities.txt', help='File containing entities')
     parser.add_argument('--max_new_tokens', type=int, default=512, help='Max number of new tokens to generate')  # Set to 128
-    parser.add_argument('--temperature', type=float, default=0.5, help='Sampling temperature')
+    parser.add_argument('--temperature', type=float, default=0.01, help='Sampling temperature')
     parser.add_argument('--api', type=str, default='gpt-4o-mini', help='API used for FactScore. Not used.')
     parser.add_argument('--openai_key', type=str, help='OpenAI API key for FactScorer')
     parser.add_argument('--gamma', type=int, default=10, help='Gamma parameter for FactScorer')
     parser.add_argument('--device', type=str, default='cuda', help='Computation device')
     parser.add_argument('--max_memory', type=str, default='80GIB', help='Max memory per device for model')
-    parser.add_argument('--output_dir', type=str, default='./FActScore/data/unlabeled', help='Directory to save outputs')
-    parser.add_argument('--backup_dir', type=str, default='/scratch/ms23jh/facts', help='Directory to save backup outputs')
+    parser.add_argument('--output_dir', type=str, default='./FActScore/data', help='Directory to save outputs')
     parser.add_argument('--use_clamped', type=bool, default=False, help='Help distinguish file names when clamping')
     parser.add_argument('--entity_range', type=str, default=None, help='Range of entities to process, e.g., "100:", "100:200", ":200"')
     parser.add_argument('--max_entities', type=int, default=30, help='Maximum number of entities to process after applying the range')
@@ -199,7 +195,7 @@ def main():
     #     verbose=args.verbose
     # )
     
-    with open('./llama3_405b_30_wikibio_gen_results.json', 'r') as f:
+    with open('./results_all/llama3_70b_25_30_wikibio_gen_results.json', 'r') as f:
         gens = json.load(f)
         
     generations = [gen['response'] for gen in gens]
@@ -209,12 +205,12 @@ def main():
     save_output(
         factscore_output, 
         args.model_name, 
-        len(ents), 
+        args.entity_range,
         args.temperature, 
         args.max_new_tokens, 
         args.api, 
         args.output_dir, 
-        args.backup_dir,
+        None,
         args.use_clamped,
     )
     

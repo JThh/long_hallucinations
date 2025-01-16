@@ -244,9 +244,9 @@ class FactScorer(object):
 
     def __init__(self,
                  model_name="retrieval+ChatGPT",
-                 data_dir="/scratch/ms23jh/.cache/factscore",
-                 model_dir="/scratch/ms23jh/.cache/factscore",
-                 cache_dir="/scratch/ms23jh/.cache/factscore",
+                 data_dir="../data/.cache",
+                 model_dir=None,
+                 cache_dir="~/.cache/factscore",
                  openai_key="api.key",
                  cost_estimate="consider_cache",
                  abstain_detection_type=None,
@@ -364,7 +364,7 @@ class FactScorer(object):
             if self.af_generator is None:
                 logging.debug("Initializing AtomicFactGenerator...")
                 self.af_generator = AtomicFactGenerator(key_path=self.openai_key,
-                                                        demon_dir=os.path.join(self.data_dir, "demos"),
+                                                        demon_dir=os.path.join(self.data_dir, "factscore", "demos"),
                                                         gpt3_cache_file=os.path.join(self.cache_dir, "GPT4o.pkl"))
 
             # Estimate the total cost of atomic fact generation

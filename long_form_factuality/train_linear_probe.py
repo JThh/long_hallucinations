@@ -1,3 +1,5 @@
+"""Deprecated training script -> see fp_exps for latest ones"""
+
 import os
 import pickle
 from collections import defaultdict
@@ -15,7 +17,7 @@ from huggingface_hub import snapshot_download
 
 import argparse
 
-from eval_utils import auroc, bootstrap_func
+from utils.eval_utils import auroc, bootstrap_func
 
 # Define a mapping from model names to their corresponding number of layers
 MODEL_LAYER_COUNTS = {
@@ -28,12 +30,12 @@ MODEL_LAYER_COUNTS = {
 # Set the default number of layers if the model is not in the mapping
 DEFAULT_LAYER_COUNT = 33
 
-def load_fact_scores(model_name, data_dir='./FActScore/data/labeled', scores_filename=None):
+def load_fact_scores(model_name, data_dir='./FActScore/data/', scores_filename=None):
     """Load fact scores from pickled file."""
     if scores_filename is not None:
         filepath = scores_filename
     else:
-        filepath = os.path.join(data_dir, f'{model_name}_fact_scores_nent_200_temp_0.1_maxtok_128_api_gpt-4o-mini.pkl')
+        filepath = os.path.join(data_dir, f'{model_name}_fact_scores_nent_30_temp_0.5_maxtok_512_api_gpt-4o-mini.pkl')
     with open(filepath, 'rb') as f:
         scores = pickle.load(f)
     return scores
@@ -360,15 +362,15 @@ def test_on_new_data(model_name, tokenizer, llm, probe_filepath, new_scores_file
 
 def main():
     parser = argparse.ArgumentParser(description='Probing Experiments')
-    parser.add_argument('--hf_model_name', type=str, default='meta-llama/Meta-Llama-3.1-8B-Instruct', help='Name of the Hugging Face model')
-    parser.add_argument('--model_name', type=str, default='Llama3.1-8B', help='Model name identifier')
+    parser.add_argument('--hf_model_name', type=str, default='meta-llama/Llama-3.1-70B-Instruct', help='Name of the Hugging Face model')
+    parser.add_argument('--model_name', type=str, default='Llama3.1-70B', help='Model name identifier')
     parser.add_argument('--token_pos', type=str, default='lt', choices=['lt', 'slt', 'fgt'], help='Token position: last token (lt), second last token (slt), first token (fgt)')
     parser.add_argument('--C', type=float, default=0.5, help='Regularization parameter for Logistic Regression')
     parser.add_argument('--max_iter', type=int, default=1000, help='Maximum number of iterations for solver convergence')
     parser.add_argument('--group_size', type=int, default=5, help='Number of layers to concatenate for probing')
     parser.add_argument('--cache_dir', type=str, default='/scratch/ms23jh/facts', help='Directory to cache computed inputs')
     parser.add_argument('--results_dir', type=str, default='./metrics', help='Directory to save results')
-    parser.add_argument('--data_dir', type=str, default='./FActScore/data/unlabeled', help='Directory containing data')
+    parser.add_argument('--data_dir', type=str, default='./FActScore/data', help='Directory containing data')
     parser.add_argument('--layer_range', type=int, nargs='+', default=None, help='Range of layers to use')
     parser.add_argument('--device', type=str, default='cuda', help='Device to use for computation')
     parser.add_argument('--max_memory', type=str, default='80GIB', help='Max memory per device for model')
@@ -400,7 +402,7 @@ def main():
         print(f'Using specified layer range: {args.layer_range}')
 
     # Initialize model
-    tokenizer, llm = initialize_model(args.hf_model_name, device=args.device, max_memory=args.max_memory)
+    # tokenizer, llm = initialize_model(args.hf_model_name, device=args.device, max_memory=args.max_memory)
 
     if args.mode == 'train':
         # Load fact scores

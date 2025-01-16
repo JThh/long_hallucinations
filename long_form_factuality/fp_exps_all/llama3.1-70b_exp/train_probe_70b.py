@@ -23,7 +23,7 @@ from eval_utils import auroc, bootstrap_func  # Ensure this is available in your
 
 # Constants
 MODEL_NAME = 'Llama3.1-70B'
-HF_MODEL_NAME = 'meta-llama/Meta-Llama-3.1-70B-Instruct'
+HF_MODEL_NAME = 'meta-llama/Llama-3.1-70B-Instruct'
 NUM_LAYERS = 80
 
 DEFAULT_TRAIN_DATA_DIR = './train_data/'
@@ -98,21 +98,24 @@ def flatten_scores(scores):
         logger.error(f'Error flattening scores: {e}')
         raise
 
+
 def initialize_model():
     """Initialize the tokenizer and model for Llama3.1-70B."""
     logger.info(f'Downloading and initializing model "{MODEL_NAME}" from Hugging Face...')
     try:
-        path = snapshot_download(
-            repo_id=HF_MODEL_NAME,
-            allow_patterns=['*.json', '*.model', '*.safetensors'],
-            ignore_patterns=['pytorch_model.bin.index.json']
-        )
-        tokenizer = AutoTokenizer.from_pretrained(path)
+        # path = snapshot_download(
+        #     repo_id=HF_MODEL_NAME,
+        #     allow_patterns=['*.json', '*.model', '*.safetensors'],
+        #     ignore_patterns=['pytorch_model.bin.index.json']
+        # )
+        tokenizer = AutoTokenizer.from_pretrained(HF_MODEL_NAME)
         model = AutoModelForCausalLM.from_pretrained(
-            path, 
+            HF_MODEL_NAME, 
             device_map="auto", 
-            torch_dtype=torch.float16
+            torch_dtype=torch.float16,
+            cache_dir=os.environ["HF_DATASETS_CACHE"]
         )
+        
         logger.info(f'Model "{MODEL_NAME}" loaded successfully.')
         return tokenizer, model
     except Exception as e:
